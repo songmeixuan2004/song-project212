@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>售后管理 - 商家后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+        .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+        .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+        .user-info{display:flex;align-items:center;gap:15px;}
+        .user-name{font-size:14px;color:#333;}
+        .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .list-box{background:#fff;border-radius:12px;padding:12px;margin:75px 10px 10px;box-shadow:0 1px 4px #d1e7ff;}
+        .form-title{font-size:16px;font-weight:bold;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;}
+        .order-card{background:#fff;border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 1px 4px #d1e7ff;}
+        .order-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #eee;flex-wrap:wrap;gap:8px;}
+        .order-id{font-size:14px;font-weight:bold;}
+        .order-status{font-size:12px;padding:4px 10px;border-radius:20px;}
+        .status-0{background:#FFF3E0;color:#FF9800;}
+        .status-1{background:#E8F5E9;color:#4CAF50;}
+        .status-2{background:#FFEBEE;color:#f44336;}
+
+        .user-info-section{
+            background:#f5f5f5;
+            padding:10px;
+            border-radius:8px;
+            margin:10px 0;
+            font-size:13px;
+            display:flex;
+            justify-content:space-between;
+            flex-wrap:wrap;
+            gap:8px;
+        }
+        .user-label{color:#666;}
+        .user-value{color:#333;font-weight:bold;}
+
+        .order-product-item{display:flex;gap:12px;padding:10px 0;}
+        .order-product-img{width:60px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+        .order-product-img img{width:100%;height:100%;object-fit:cover;}
+        .order-product-info{flex:1;}
+        .order-product-name{font-size:14px;font-weight:bold;}
+        .refund-amount{font-size:16px;font-weight:bold;color:#ff4d4f;text-align:right;min-width:100px;padding-top:10px;}
+
+        .after-sale-info{font-size:13px;color:#666;padding:10px;background:#f9f9f9;border-radius:8px;margin:10px 0;}
+        .order-footer{display:flex;justify-content:flex-end;gap:10px;padding-top:10px;border-top:1px solid #eee;flex-wrap:wrap;}
+        .ship-btn{background:#4CAF50;color:#fff;border:none;padding:6px 20px;border-radius:20px;cursor:pointer;}
+        .reject-btn{background:#f44336;}
+        .remark-input{padding:6px 10px;border:1px solid #ddd;border-radius:6px;width:200px;}
+        .loading{text-align:center;padding:40px;color:#999;}
+        .empty-msg{text-align:center;padding:40px;color:#999;}
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+        .nav-item.active{color:#42A5F5;}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">🔧 售后管理</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">加载中...</span>
+        <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="list-box">
+    <div class="form-title">售后申请列表</div>
+    <div id="afterSaleList">加载中...</div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="location.href='index.html'">首页</div>
+    <div class="nav-item" onclick="location.href='product.html'">商品</div>
+    <div class="nav-item active">售后</div>
+    <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8088/api";
+
+    window.onload = function() {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+        if (!userId) { window.location.href = '../../login.html'; return; }
+        if (userRole !== 'merchant') { window.location.href = '../../user/index.html'; return; }
+        document.getElementById('userName').innerText = username || '商家';
+        loadAfterSales();
+    };
+
+    function logout() { localStorage.clear(); window.location.href = '../../login.html'; }
+
+    async function loadAfterSales() {
+        const wrap = document.getElementById("afterSaleList");
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/afterSale/listAll');
+            if (res.data.code === 0) {
+                const items = res.data.data || [];
+                if (items.length === 0) { wrap.innerHTML = '<div class="empty-msg">暂无售后申请</div>'; return; }
+                let html = "";
+                for (let item of items) {
+                    const statusText = item.status === 0 ? '待处理' : (item.status === 1 ? '已同意' : (item.status === 2 ? '已拒绝' : '已完成'));
+                    const statusClass = item.status === 0 ? 'status-0' : (item.status === 1 ? 'status-1' : 'status-2');
+                    const refundAmount = item.refundAmount || (item.productPrice * item.quantity) || 0;
+
+                    html += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span class="order-id">🔧 售后单号：${item.id}</span>
+                                <span class="order-status ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="user-info-section">
+                                <div><span class="user-label">👤 申请用户：</span><span class="user-value">${escapeHtml(item.userName || '用户')}</span></div>
+                                <div><span class="user-label">🆔 用户ID：</span><span class="user-value">${item.userId || '-'}</span></div>
+                                <div><span class="user-label">📦 订单号：</span><span class="user-value">${item.orderId || '-'}</span></div>
+                                <div><span class="user-label">⏰ 申请时间：</span><span class="user-value">${formatDateTime(item.applyTime)}</span></div>
+                            </div>
+                            <div class="order-product-item">
+                                <div class="order-product-img">${item.productPic ? '<img src="' + item.productPic + '">' : '<span>📦</span>'}</div>
+                                <div class="order-product-info">
+                                    <div class="order-product-name">${escapeHtml(item.productName || '商品')}</div>
+                                    <div class="order-product-price">单价：¥${(item.productPrice || 0).toFixed(2)} x ${item.quantity || 1}</div>
+                                </div>
+                                <div class="refund-amount">退款：¥${refundAmount.toFixed(2)}</div>
+                            </div>
+                            <div class="after-sale-info">
+                                <div><strong>📝 售后类型：</strong> ${item.type === 0 ? '仅退款' : '退货退款'}</div>
+                                <div><strong>📌 申请原因：</strong> ${escapeHtml(item.reason || '无')}</div>
+                                <div><strong>📄 问题描述：</strong> ${escapeHtml(item.description || '无')}</div>
+                            </div>
+                    `;
+
+                    if (item.status === 0) {
+                        html += `
+                            <div class="order-footer">
+                                <input type="text" id="remark_${item.id}" class="remark-input" placeholder="处理备注">
+                                <button class="ship-btn" onclick="handleAfterSale(${item.id}, 1)">✅ 同意退款</button>
+                                <button class="ship-btn reject-btn" onclick="handleAfterSale(${item.id}, 2)">❌ 拒绝退款</button>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="order-footer">
+                                <span>📋 处理结果：${item.handleRemark || '无备注'}</span>
+                            </div>
+                        `;
+                    }
+
+                    html += `</div>`;
+                }
+                wrap.innerHTML = html;
+            } else { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+        } catch (err) { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+    }
+
+    async function handleAfterSale(id, status) {
+        const remark = document.getElementById(`remark_${id}`)?.value || '';
+        if (!confirm(`确定${status === 1 ? '同意' : '拒绝'}该售后申请吗？`)) return;
+        try {
+            const res = await axios.post(baseUrl + '/afterSale/handle', null, { params: { id: id, status: status, remark: remark } });
+            if (res.data.code === 0 || res.data.code === 1) { alert(`${status === 1 ? '同意' : '拒绝'}成功`); loadAfterSales(); }
+            else { alert("处理失败：" + res.data.msg); }
+        } catch (err) { alert("处理失败"); }
+    }
+
+    function formatDateTime(dateStr) { if (!dateStr) return '未知'; return dateStr.replace('T', ' '); }
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]); }
+</script>
+</body>
+</html>

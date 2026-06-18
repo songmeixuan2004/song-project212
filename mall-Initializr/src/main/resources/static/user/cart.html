@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>购物车</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#f5f5f5;font-family:微软雅黑;padding-bottom:70px;}
+
+        .header{
+            position:fixed;
+            top:0;
+            left:0;
+            right:0;
+            background:#fff;
+            padding:12px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            box-shadow:0 1px 4px #ddd;
+            z-index:9;
+        }
+        .header-title{
+            font-size:18px;
+            font-weight:bold;
+            color:#333;
+        }
+        .user-info{
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+        .user-name{
+            font-size:12px;
+            color:#666;
+        }
+        .logout-btn{
+            background:#ff6b6b;
+            color:#fff;
+            border:none;
+            padding:4px 10px;
+            border-radius:14px;
+            font-size:11px;
+            cursor:pointer;
+        }
+
+        .cart-list{
+            margin-top:55px;
+            padding:10px;
+        }
+
+        .cart-item{
+            background:#fff;
+            border-radius:12px;
+            margin-bottom:12px;
+            padding:12px;
+            display:flex;
+            gap:12px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .cart-item-img{
+            width:80px;
+            height:80px;
+            background:#f0f0f0;
+            border-radius:8px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            overflow:hidden;
+            flex-shrink:0;
+        }
+        .cart-item-img img{
+            width:100%;
+            height:100%;
+            object-fit:cover;
+        }
+        .cart-item-img span{
+            font-size:32px;
+        }
+
+        .cart-item-info{
+            flex:1;
+        }
+        .cart-item-name{
+            font-size:15px;
+            font-weight:bold;
+            color:#333;
+            margin-bottom:6px;
+        }
+        .cart-item-price{
+            color:#ff4d4f;
+            font-size:16px;
+            font-weight:bold;
+            margin-bottom:8px;
+        }
+
+        .cart-item-control{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-top:8px;
+        }
+        .num-btn{
+            width:28px;
+            height:28px;
+            border:1px solid #ddd;
+            background:#f9f9f9;
+            border-radius:6px;
+            cursor:pointer;
+            font-size:16px;
+        }
+        .num-input{
+            width:45px;
+            height:28px;
+            text-align:center;
+            border:1px solid #ddd;
+            border-radius:6px;
+            background:#fff;
+            font-size:14px;
+        }
+
+        .cart-item-del{
+            color:#ff6b6b;
+            font-size:13px;
+            cursor:pointer;
+            padding:0 5px;
+            display:flex;
+            align-items:center;
+        }
+
+        .bottom-bar{
+            position:fixed;
+            bottom:55px;
+            left:0;
+            right:0;
+            background:#fff;
+            padding:12px 15px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            box-shadow:0 -1px 4px rgba(0,0,0,0.05);
+            border-top:1px solid #eee;
+        }
+        .total-info{
+            font-size:14px;
+            color:#333;
+        }
+        .total-price{
+            color:#ff4d4f;
+            font-size:20px;
+            font-weight:bold;
+        }
+        .action-btns{
+            display:flex;
+            gap:10px;
+        }
+        .clear-btn{
+            background:#f0f0f0;
+            border:none;
+            padding:8px 16px;
+            border-radius:24px;
+            font-size:13px;
+            cursor:pointer;
+        }
+        .checkout-btn{
+            background:#ff4d4f;
+            color:#fff;
+            border:none;
+            padding:8px 20px;
+            border-radius:24px;
+            font-size:13px;
+            cursor:pointer;
+        }
+
+        .empty-cart{
+            text-align:center;
+            padding:80px 20px;
+            color:#999;
+        }
+        .empty-cart span{
+            font-size:64px;
+            display:block;
+            margin-bottom:16px;
+        }
+
+        .bottom-nav{
+            position:fixed;
+            bottom:0;
+            left:0;
+            right:0;
+            background:#fff;
+            display:flex;
+            padding:6px 0;
+            border-top:1px solid #E0E0E0;
+        }
+        .nav-item{
+            flex:1;
+            text-align:center;
+            font-size:11px;
+            color:#666;
+            cursor:pointer;
+        }
+        .nav-item.active{
+            color:#42A5F5;
+            font-weight:bold;
+        }
+
+        .loading{
+            text-align:center;
+            padding:50px;
+            color:#999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-title">我的购物车</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">用户</span>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="cart-list" id="cartList">
+    <div class="loading">加载中...</div>
+</div>
+
+<div class="bottom-bar" id="bottomBar" style="display:none;">
+    <div class="total-info">
+        合计: <span class="total-price" id="totalPrice">¥0.00</span>
+    </div>
+    <div class="action-btns">
+        <button class="clear-btn" onclick="clearCart()">清空</button>
+        <button class="checkout-btn" onclick="checkout()">去结算</button>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="location.href='index.html'">首页</div>
+    <div class="nav-item active">购物车</div>
+    <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+    <div class="nav-item" onclick="location.href='complaint.html'">投诉</div>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8088/api";
+    let cartList = [];
+    let userId = null;
+    let userName = null;
+
+    window.onload = function() {
+        checkLogin();
+        loadCart();
+    };
+
+    function checkLogin() {
+        userId = localStorage.getItem('userId');
+        userName = localStorage.getItem('username');
+        var userRole = localStorage.getItem('userRole');
+
+        if (!userId) {
+            window.location.href = '../login.html';
+            return;
+        }
+
+        if (userRole === 'merchant') {
+            window.location.href = '../merchant/index.html';
+            return;
+        }
+
+        document.getElementById('userName').innerText = userName || '用户';
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = '../login.html';
+    }
+
+    function loadCart() {
+        axios.get(baseUrl + '/cart/list?userId=' + userId)
+            .then(function(res) {
+                console.log("购物车数据:", res.data);
+                if (res.data.code === 0) {
+                    cartList = res.data.data || [];
+                    renderCart();
+                } else {
+                    document.getElementById("cartList").innerHTML = '<div class="empty-cart"><span>🛒</span>加载失败：' + (res.data.msg || "未知错误") + '</div>';
+                }
+            })
+            .catch(function(err) {
+                console.error("加载购物车失败:", err);
+                document.getElementById("cartList").innerHTML = '<div class="empty-cart"><span>⚠️</span>加载失败，请检查网络</div>';
+            });
+    }
+
+    function renderCart() {
+        const container = document.getElementById("cartList");
+        const bottomBar = document.getElementById("bottomBar");
+        const totalPriceSpan = document.getElementById("totalPrice");
+
+        if (cartList.length === 0) {
+            container.innerHTML = '<div class="empty-cart"><span>🛒</span>购物车空空如也，快去逛逛吧</div>';
+            bottomBar.style.display = "none";
+            return;
+        }
+
+        bottomBar.style.display = "flex";
+        let html = "";
+        let total = 0;
+
+        for(var i = 0; i < cartList.length; i++) {
+            var item = cartList[i];
+            var price = item.productPrice || 0;
+            var quantity = item.quantity || 1;
+            var subtotal = price * quantity;
+            total += subtotal;
+
+            var imgHtml = "";
+            if (item.productPic && item.productPic.trim() !== "" && item.productPic !== "null") {
+                imgHtml = '<img src="' + item.productPic + '" alt="' + (item.productName || '商品') + '" onerror="this.parentElement.innerHTML=\'<span>📦</span>\'">';
+            } else {
+                imgHtml = '<span>📦</span>';
+            }
+
+            html += '<div class="cart-item" data-id="' + item.id + '">' +
+                '<div class="cart-item-img">' + imgHtml + '</div>' +
+                '<div class="cart-item-info">' +
+                '<div class="cart-item-name">' + escapeHtml(item.productName || '商品') + '</div>' +
+                '<div class="cart-item-price">¥' + price.toFixed(2) + '</div>' +
+                '<div class="cart-item-control">' +
+                '<button class="num-btn" onclick="changeQuantity(' + item.id + ', ' + quantity + ', -1)">-</button>' +
+                '<input class="num-input" id="qty_' + item.id + '" value="' + quantity + '" readonly>' +
+                '<button class="num-btn" onclick="changeQuantity(' + item.id + ', ' + quantity + ', 1)">+</button>' +
+                '</div>' +
+                '</div>' +
+                '<div class="cart-item-del" onclick="deleteCartItem(' + item.id + ')">🗑️ 删除</div>' +
+                '</div>';
+        }
+
+        container.innerHTML = html;
+        totalPriceSpan.innerText = "¥" + total.toFixed(2);
+    }
+
+    function changeQuantity(cartId, oldQuantity, delta) {
+        var newQuantity = oldQuantity + delta;
+        if (newQuantity < 1) return;
+
+        axios.post(baseUrl + '/cart/update', {
+            id: cartId,
+            quantity: newQuantity
+        })
+            .then(function(res) {
+                if (res.data.code === 0 || res.data.code === 1) {
+                    loadCart();
+                } else {
+                    alert("修改失败：" + res.data.msg);
+                }
+            })
+            .catch(function(err) {
+                alert("修改失败：" + (err.response?.data?.msg || err.message));
+            });
+    }
+
+    function deleteCartItem(cartId) {
+        if (!confirm("确定要删除这件商品吗？")) return;
+
+        axios.delete(baseUrl + '/cart/delete/' + cartId)
+            .then(function(res) {
+                if (res.data.code === 0 || res.data.code === 1) {
+                    alert("删除成功");
+                    loadCart();
+                } else {
+                    alert("删除失败：" + res.data.msg);
+                }
+            })
+            .catch(function(err) {
+                alert("删除失败：" + (err.response?.data?.msg || err.message));
+            });
+    }
+
+    function clearCart() {
+        if (!confirm("确定要清空购物车吗？")) return;
+
+        axios.delete(baseUrl + '/cart/clear?userId=' + userId)
+            .then(function(res) {
+                if (res.data.code === 0 || res.data.code === 1) {
+                    alert("清空成功");
+                    loadCart();
+                } else {
+                    alert("清空失败：" + res.data.msg);
+                }
+            })
+            .catch(function(err) {
+                alert("清空失败：" + (err.response?.data?.msg || err.message));
+            });
+    }
+
+    function checkout() {
+        if (cartList.length === 0) {
+            alert("购物车为空");
+            return;
+        }
+
+        axios.post(baseUrl + '/order/createFromCart?userId=' + userId)
+            .then(function(res) {
+                if (res.data.code === 0 || res.data.code === 1) {
+                    alert("下单成功！");
+                    loadCart();
+                    setTimeout(function() {
+                        location.href = "mine.html";
+                    }, 500);
+                } else {
+                    alert("下单失败：" + res.data.msg);
+                }
+            })
+            .catch(function(err) {
+                alert("下单失败：" + (err.response?.data?.msg || err.message));
+            });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>

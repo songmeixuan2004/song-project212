@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据统计 - 平台管理员</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+    .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+
+    /* 统计卡片 */
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:15px;
+      padding:80px 15px 15px;
+    }
+    .stat-card{
+      background:#fff;
+      border-radius:12px;
+      padding:20px;
+      text-align:center;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .stat-icon{font-size:36px;margin-bottom:10px;}
+    .stat-value{font-size:28px;font-weight:bold;color:#42A5F5;}
+    .stat-label{font-size:13px;color:#666;margin-top:5px;}
+
+    /* 图表区域 */
+    .chart-container{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:15px;
+      padding:0 15px 15px;
+    }
+    .chart-box{
+      background:#fff;
+      border-radius:12px;
+      padding:15px;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .chart-title{
+      font-size:16px;
+      font-weight:bold;
+      margin-bottom:15px;
+      padding-bottom:8px;
+      border-bottom:1px solid #eee;
+    }
+    canvas{max-height:250px;width:100%;}
+
+    /* 订单列表 */
+    .recent-orders{
+      background:#fff;
+      border-radius:12px;
+      margin:15px;
+      padding:15px;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .section-title{
+      font-size:16px;
+      font-weight:bold;
+      margin-bottom:15px;
+      padding-bottom:8px;
+      border-bottom:1px solid #eee;
+    }
+    .order-item{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 0;
+      border-bottom:1px solid #f0f0f0;
+    }
+    .order-item:last-child{border-bottom:none;}
+    .order-id{font-weight:bold;color:#333;}
+    .order-user{color:#666;font-size:13px;}
+    .order-amount{color:#ff4d4f;font-weight:bold;}
+
+    .loading{text-align:center;padding:40px;color:#999;}
+    .empty-msg{text-align:center;padding:40px;color:#999;}
+
+    .bottom-nav{
+      position:fixed;bottom:0;left:0;right:0;background:#fff;
+      display:flex;padding:8px 0;border-top:1px solid #E0E0E0;
+    }
+    .nav-item{
+      flex:1;text-align:center;font-size:12px;
+      color:#666;cursor:pointer;
+    }
+    .nav-item.active{color:#42A5F5;font-weight:bold;}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">📊 数据统计中心</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">管理员</span>
+    <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-value" id="totalUsers">-</div>
+    <div class="stat-label">总用户数</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📦</div>
+    <div class="stat-value" id="totalProducts">-</div>
+    <div class="stat-label">商品总数</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-value" id="totalOrders">-</div>
+    <div class="stat-label">订单总数</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">💰</div>
+    <div class="stat-value" id="totalSales">-</div>
+    <div class="stat-label">总销售额</div>
+  </div>
+</div>
+
+<!-- 图表区域 -->
+<div class="chart-container">
+  <div class="chart-box">
+    <div class="chart-title">📈 近7天订单趋势</div>
+    <canvas id="orderTrendChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">📊 商品销售排行</div>
+    <canvas id="topProductsChart"></canvas>
+  </div>
+</div>
+
+<!-- 最近订单 -->
+<div class="recent-orders">
+  <div class="section-title">📋 最近10条订单</div>
+  <div id="recentOrdersList">加载中...</div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">首页</div>
+  <div class="nav-item" onclick="location.href='statistics.html'">统计</div>
+  <div class="nav-item" onclick="location.href='violation.html'">违规</div>
+  <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  let orderTrendChart = null;
+  let topProductsChart = null;
+
+  window.onload = function() {
+    checkLogin();
+  };
+
+  function checkLogin() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+
+    if (!userId) {
+      window.location.href = '../login.html';
+      return;
+    }
+    if (userRole !== 'admin') {
+      alert('权限不足，仅管理员可访问');
+      window.location.href = '../index.html';
+      return;
+    }
+    document.getElementById('userName').innerText = username || '管理员';
+    loadStatistics();
+    loadRecentOrders();
+    loadChartData();
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '../login.html';
+  }
+
+  async function loadStatistics() {
+    try {
+      // 获取商品总数
+      const productRes = await axios.get(baseUrl + '/product/listAll');
+      const products = productRes.data.data || [];
+      document.getElementById('totalProducts').innerText = products.length;
+
+      // 获取订单总数和销售额
+      const orderRes = await axios.get(baseUrl + '/order/listAll');
+      const orders = orderRes.data.data || [];
+      document.getElementById('totalOrders').innerText = orders.length;
+
+      let totalSales = 0;
+      for (let o of orders) {
+        totalSales += o.totalPrice || 0;
+      }
+      document.getElementById('totalSales').innerText = '¥' + totalSales.toFixed(2);
+
+      // 获取用户总数（需要有用户列表接口）
+      try {
+        const userRes = await axios.get(baseUrl + '/user/listAll');
+        const users = userRes.data.data || [];
+        document.getElementById('totalUsers').innerText = users.length;
+      } catch(e) {
+        document.getElementById('totalUsers').innerText = orders.length > 0 ? '待开发' : '-';
+      }
+    } catch(err) {
+      console.error('加载统计数据失败:', err);
+    }
+  }
+
+  async function loadRecentOrders() {
+    const wrap = document.getElementById('recentOrdersList');
+    try {
+      const res = await axios.get(baseUrl + '/order/listAll');
+      const orders = (res.data.data || []).slice(0, 10);
+
+      if (orders.length === 0) {
+        wrap.innerHTML = '<div class="empty-msg">暂无订单</div>';
+        return;
+      }
+
+      let html = '';
+      for (let o of orders) {
+        let statusText = '';
+        if (o.status === 0) statusText = '待付款';
+        else if (o.status === 1) statusText = '待发货';
+        else if (o.status === 2) statusText = '已发货';
+        else statusText = '已完成';
+
+        html += `
+                    <div class="order-item">
+                        <div>
+                            <div class="order-id">订单号：${o.id}</div>
+                            <div class="order-user">状态：${statusText}</div>
+                        </div>
+                        <div class="order-amount">¥${(o.totalPrice || 0).toFixed(2)}</div>
+                    </div>
+                `;
+      }
+      wrap.innerHTML = html;
+    } catch(err) {
+      wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+    }
+  }
+
+  async function loadChartData() {
+    try {
+      const res = await axios.get(baseUrl + '/order/listAll');
+      const orders = res.data.data || [];
+
+      // 按日期分组统计近7天订单
+      const last7Days = getLast7Days();
+      const orderCountByDate = {};
+
+      for (let day of last7Days) {
+        orderCountByDate[day] = 0;
+      }
+
+      for (let o of orders) {
+        if (o.createTime) {
+          const date = o.createTime.split('T')[0];
+          if (orderCountByDate[date] !== undefined) {
+            orderCountByDate[date]++;
+          }
+        }
+      }
+
+      const orderCounts = last7Days.map(day => orderCountByDate[day]);
+
+      // 绘制订单趋势图
+      if (orderTrendChart) orderTrendChart.destroy();
+      const ctx1 = document.getElementById('orderTrendChart').getContext('2d');
+      orderTrendChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: last7Days,
+          datasets: [{
+            label: '订单数量',
+            data: orderCounts,
+            borderColor: '#42A5F5',
+            backgroundColor: 'rgba(66,165,245,0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: true }
+      });
+
+      // 商品销售排行
+      const productSales = {};
+      for (let o of orders) {
+        try {
+          const itemsRes = await axios.get(baseUrl + '/order/items?orderId=' + o.id);
+          const items = itemsRes.data.data || [];
+          for (let item of items) {
+            const name = item.productName || '商品';
+            productSales[name] = (productSales[name] || 0) + (item.quantity || 1);
+          }
+        } catch(e) {}
+      }
+
+      const sortedProducts = Object.entries(productSales)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5);
+
+      if (topProductsChart) topProductsChart.destroy();
+      const ctx2 = document.getElementById('topProductsChart').getContext('2d');
+      topProductsChart = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: sortedProducts.map(p => p[0]),
+          datasets: [{
+            label: '销售数量',
+            data: sortedProducts.map(p => p[1]),
+            backgroundColor: '#42A5F5',
+            borderRadius: 8
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: true }
+      });
+    } catch(err) {
+      console.error('加载图表数据失败:', err);
+    }
+  }
+
+  function getLast7Days() {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      days.push(`${year}-${month}-${day}`);
+    }
+    return days;
+  }
+</script>
+</body>
+</html>

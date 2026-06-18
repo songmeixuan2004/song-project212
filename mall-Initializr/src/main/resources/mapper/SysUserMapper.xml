@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.shop.mapper.SysUserMapper">
+
+    <select id="findByUsername" resultType="com.example.shop.entity.SysUser">
+        select * from sys_user where username = #{username}
+    </select>
+
+    <insert id="insert">
+        insert into sys_user(username, password, role, create_time)
+        values(#{username}, #{password}, #{role}, #{createTime})
+    </insert>
+
+</mapper>

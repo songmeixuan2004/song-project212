@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理 - 商家后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+
+        .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+        .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+        .user-info{display:flex;align-items:center;gap:15px;}
+        .user-name{font-size:14px;color:#333;}
+        .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+
+        .order-tab{display:flex;background:#fff;margin-top:65px;margin-left:10px;margin-right:10px;border-radius:12px;overflow-x:auto;}
+        .tab{flex:1;text-align:center;padding:12px;cursor:pointer;background:#f5f5f5;font-size:14px;}
+        .tab.active{background:#42A5F5;color:#fff;}
+
+        .order-wrap{padding:10px;}
+        .order-card{background:#fff;border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 1px 4px #d1e7ff;}
+        .order-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+        .order-id{font-size:14px;font-weight:bold;color:#333;}
+        .order-status{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:bold;}
+        .status-0{background:#FFF3E0;color:#FF9800;}
+        .status-1{background:#E3F2FD;color:#2196F3;}
+        .status-2{background:#E8F5E9;color:#4CAF50;}
+        .status-3{background:#F3E5F5;color:#9C27B0;}
+
+        .order-user-info{
+            background:#f5f5f5;
+            padding:8px 12px;
+            border-radius:8px;
+            margin-bottom:10px;
+            font-size:13px;
+            display:flex;
+            justify-content:space-between;
+            flex-wrap:wrap;
+            gap:8px;
+        }
+        .user-label{color:#666;}
+        .user-value{color:#333;font-weight:bold;}
+
+        .order-products{margin-bottom:12px;}
+        .order-product-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;}
+        .order-product-item:last-child{border-bottom:none;}
+        .order-product-img{width:60px;height:60px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+        .order-product-img img{width:100%;height:100%;object-fit:cover;}
+        .order-product-info{flex:1;}
+        .order-product-name{font-size:14px;font-weight:bold;}
+        .order-product-price{font-size:12px;color:#ff4d4f;}
+        .order-product-subtotal{font-size:13px;font-weight:bold;color:#ff4d4f;text-align:right;min-width:80px;padding-top:10px;}
+
+        .order-footer{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #eee;margin-top:5px;}
+        .order-total{font-size:16px;font-weight:bold;color:#ff4d4f;}
+        .ship-btn{background:#4CAF50;color:#fff;border:none;padding:6px 20px;border-radius:20px;cursor:pointer;}
+
+        .loading{text-align:center;padding:40px;color:#999;}
+        .empty-msg{text-align:center;padding:40px;color:#999;}
+
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+        .nav-item.active{color:#42A5F5;}
+
+        .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;}
+        .modal-content{background:#fff;border-radius:12px;width:90%;max-width:450px;padding:20px;}
+        .modal-title{font-size:18px;font-weight:bold;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee;}
+        .modal-field{margin-bottom:15px;}
+        .modal-field label{display:block;margin-bottom:5px;font-size:13px;color:#666;}
+        .modal-field input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;}
+        .modal-buttons{display:flex;gap:10px;margin-top:20px;}
+        .modal-buttons button{flex:1;padding:10px;border-radius:8px;cursor:pointer;border:none;}
+        .btn-submit{background:#42A5F5;color:#fff;}
+        .btn-cancel{background:#ccc;color:#fff;}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">📋 订单管理</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">商家</span>
+        <button class="back-btn" onclick="goTo('index.html')">返回首页</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="order-tab">
+    <div class="tab active" data-status="-1" onclick="switchTab(this, -1)">全部</div>
+    <div class="tab" data-status="0" onclick="switchTab(this, 0)">待付款</div>
+    <div class="tab" data-status="1" onclick="switchTab(this, 1)">待发货</div>
+    <div class="tab" data-status="2" onclick="switchTab(this, 2)">已发货</div>
+    <div class="tab" data-status="3" onclick="switchTab(this, 3)">已完成</div>
+</div>
+
+<div class="order-wrap" id="orderWrap"><div class="loading">加载中...</div></div>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="goTo('index.html')">🏠 首页</div>
+    <div class="nav-item" onclick="goTo('product.html')">📦 商品</div>
+    <div class="nav-item active" onclick="goTo('order.html')">📋 订单</div>
+    <div class="nav-item" onclick="goTo('statistics.html')">📊 统计</div>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8088/api";
+    let allOrders = [];
+    let currentStatus = -1;
+    let currentMerchantId = null;
+
+    window.onload = function() {
+        checkLogin();
+    };
+
+    function goTo(page) {
+        window.location.href = page;
+    }
+
+    function checkLogin() {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+
+        if (!userId) {
+            window.location.href = '../../login.html';
+            return;
+        }
+        if (userRole !== 'merchant') {
+            window.location.href = '../../user/index.html';
+            return;
+        }
+        currentMerchantId = parseInt(userId);
+        document.getElementById('userName').innerText = username || '商家';
+        loadOrders();
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = '../../login.html';
+    }
+
+    function switchTab(el, status) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        currentStatus = status;
+        filterOrders();
+    }
+
+    function filterOrders() {
+        let filtered = currentStatus === -1 ? allOrders : allOrders.filter(o => o.status === currentStatus);
+        renderOrders(filtered);
+    }
+
+    async function loadOrders() {
+        const wrap = document.getElementById('orderWrap');
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            // ✅ 关键修改：传入商家ID，只查询该商家的订单
+            const res = await axios.get(baseUrl + '/order/listAll', {
+                params: { merchantId: currentMerchantId }
+            });
+            console.log('订单接口返回:', res.data);
+
+            if (res.data.code === 0) {
+                const orders = res.data.data || [];
+                console.log('商家 ' + currentMerchantId + ' 的订单数量:', orders.length);
+
+                for (let o of orders) {
+                    try {
+                        const itemsRes = await axios.get(baseUrl + '/order/items?orderId=' + o.id);
+                        o.items = itemsRes.data.data || [];
+                    } catch(e) {
+                        o.items = [];
+                    }
+                }
+                allOrders = orders;
+                filterOrders();
+            } else {
+                wrap.innerHTML = '<div class="empty-msg">加载失败: ' + (res.data.msg || '未知错误') + '</div>';
+            }
+        } catch(err) {
+            console.error('加载订单失败:', err);
+            wrap.innerHTML = '<div class="empty-msg">加载失败: ' + err.message + '</div>';
+        }
+    }
+
+    function renderOrders(orders) {
+        const wrap = document.getElementById('orderWrap');
+        if (orders.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">暂无订单</div>';
+            return;
+        }
+
+        let html = '';
+        for (let o of orders) {
+            let statusText = '', statusClass = '', btnHtml = '';
+            if (o.status === 0) {
+                statusText = '待付款'; statusClass = 'status-0';
+                btnHtml = '<span style="color:#999;">等待用户付款</span>';
+            } else if (o.status === 1) {
+                statusText = '待发货'; statusClass = 'status-1';
+                btnHtml = `<button class="ship-btn" onclick="showShipModal(${o.id})">🚚 确认发货</button>`;
+            } else if (o.status === 2) {
+                statusText = '已发货'; statusClass = 'status-2';
+                btnHtml = '<span style="color:#4CAF50;">已发货，等待用户收货</span>';
+            } else {
+                statusText = '已完成'; statusClass = 'status-3';
+                btnHtml = '<span style="color:#9C27B0;">订单已完成</span>';
+            }
+
+            const createTime = formatDateTime(o.createTime);
+            const userName = o.userName || '用户' + o.userId;
+
+            let goodsHtml = '';
+            if (o.items && o.items.length > 0) {
+                for (let item of o.items) {
+                    goodsHtml += `
+                        <div class="order-product-item">
+                            <div class="order-product-img">${item.productPic ? '<img src="' + item.productPic + '">' : '<span>📦</span>'}</div>
+                            <div class="order-product-info">
+                                <div class="order-product-name">${escapeHtml(item.productName || '商品')}</div>
+                                <div class="order-product-price">单价：¥${(item.productPrice || 0).toFixed(2)}</div>
+                                <div class="order-product-quantity">数量：${item.quantity || 1}</div>
+                            </div>
+                            <div class="order-product-subtotal">¥${((item.productPrice || 0) * (item.quantity || 1)).toFixed(2)}</div>
+                        </div>
+                    `;
+                }
+            } else {
+                goodsHtml = '<div style="padding:10px;color:#999;">暂无商品信息</div>';
+            }
+
+            html += `
+                <div class="order-card">
+                    <div class="order-header">
+                        <span class="order-id">📋 订单号：${o.id}</span>
+                        <span class="order-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="order-user-info">
+                        <div><span class="user-label">👤 下单用户：</span><span class="user-value">${escapeHtml(userName)}</span></div>
+                        <div><span class="user-label">🆔 用户ID：</span><span class="user-value">${o.userId || '-'}</span></div>
+                        <div><span class="user-label">⏰ 下单时间：</span><span class="user-value">${createTime}</span></div>
+                    </div>
+                    ${goodsHtml}
+                    <div class="order-footer">
+                        <span class="order-total">💰 总计：¥${(o.totalPrice || 0).toFixed(2)}</span>
+                        ${btnHtml}
+                    </div>
+                </div>
+            `;
+        }
+        wrap.innerHTML = html;
+    }
+
+    function showShipModal(orderId) {
+        const modalHtml = `
+            <div id="shipModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">🚚 订单发货</div>
+                    <div class="modal-field">
+                        <label>物流公司</label>
+                        <select id="logisticsCompany">
+                            <option value="顺丰速运">顺丰速运</option>
+                            <option value="圆通速递">圆通速递</option>
+                            <option value="中通快递">中通快递</option>
+                            <option value="韵达快递">韵达快递</option>
+                            <option value="极兔速递">极兔速递</option>
+                            <option value="邮政EMS">邮政EMS</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label>物流单号</label>
+                        <input type="text" id="logisticsNo" placeholder="请输入物流单号">
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="confirmShip(${orderId})">确认发货</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    async function confirmShip(orderId) {
+        const logisticsCompany = document.getElementById('logisticsCompany').value;
+        const logisticsNo = document.getElementById('logisticsNo').value.trim();
+        if (!logisticsNo) { alert("请输入物流单号"); return; }
+
+        try {
+            await axios.post(baseUrl + '/logistics/ship', null, {
+                params: { orderId, logisticsNo, logisticsCompany }
+            });
+            await axios.post(baseUrl + '/order/ship?orderId=' + orderId);
+            alert("发货成功！");
+            closeModal();
+            loadOrders();
+        } catch (err) {
+            alert("发货失败：" + (err.response?.data?.msg || err.message));
+        }
+    }
+
+    function closeModal() {
+        const modal = document.querySelector('.modal');
+        if (modal) modal.remove();
+    }
+
+    function formatDateTime(dateStr) {
+        if (!dateStr) return '未知';
+        return dateStr.replace('T', ' ');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户管理 - 平台管理员</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+    .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+
+    .filter-bar{
+      background:#fff;
+      margin-top:65px;
+      margin-left:10px;
+      margin-right:10px;
+      padding:12px;
+      border-radius:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .filter-bar input{
+      flex:1;
+      padding:8px 12px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      outline:none;
+      min-width:150px;
+    }
+    .filter-bar select{
+      padding:8px 12px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      outline:none;
+    }
+    .filter-bar button{
+      background:#42A5F5;
+      color:#fff;
+      border:none;
+      padding:8px 16px;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      padding:12px;
+    }
+    .stat-card{
+      background:#fff;
+      border-radius:12px;
+      padding:12px;
+      text-align:center;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .stat-value{font-size:24px;font-weight:bold;color:#42A5F5;}
+    .stat-label{font-size:12px;color:#666;margin-top:4px;}
+
+    .list-box{
+      background:#fff;
+      border-radius:12px;
+      padding:12px;
+      margin:0 10px 15px;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .form-title{
+      font-size:16px;
+      font-weight:bold;
+      margin-bottom:12px;
+      padding-bottom:8px;
+      border-bottom:1px solid #eee;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .user-item{
+      border-bottom:1px solid #eee;
+      padding:12px 0;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .user-item:last-child{border-bottom:none;}
+    .user-info{flex:1;min-width:200px;}
+    .user-name{font-size:15px;font-weight:bold;margin-bottom:4px;}
+    .user-detail{font-size:12px;color:#666;}
+    .status-badge{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:12px;
+      font-size:11px;
+      margin-left:8px;
+    }
+    .status-active{background:#E8F5E9;color:#4CAF50;}
+    .status-pending{background:#FFF3E0;color:#FF9800;}
+    .status-frozen{background:#E3F2FD;color:#2196F3;}
+    .status-disabled{background:#FFEBEE;color:#f44336;}
+
+    .user-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .opt-btn{
+      border:none;
+      padding:5px 12px;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:12px;
+    }
+    .enable-btn{background:#4CAF50;color:#fff;}
+    .disable-btn{background:#f44336;color:#fff;}
+    .freeze-btn{background:#2196F3;color:#fff;}
+    .unfreeze-btn{background:#42A5F5;color:#fff;}
+    .role-btn{background:#FF9800;color:#fff;}
+    .reset-pwd-btn{background:#9C27B0;color:#fff;}
+
+    .loading{text-align:center;padding:40px;color:#999;}
+    .empty-msg{text-align:center;padding:40px;color:#999;}
+
+    .bottom-nav{
+      position:fixed;bottom:0;left:0;right:0;background:#fff;
+      display:flex;padding:8px 0;border-top:1px solid #E0E0E0;
+    }
+    .nav-item{
+      flex:1;text-align:center;font-size:12px;
+      color:#666;cursor:pointer;
+    }
+    .nav-item.active{color:#42A5F5;font-weight:bold;}
+
+    .modal{
+      position:fixed;top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.5);z-index:1000;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .modal-content{
+      background:#fff;border-radius:12px;
+      width:90%;max-width:450px;
+      padding:20px;
+    }
+    .modal-title{
+      font-size:18px;font-weight:bold;
+      margin-bottom:15px;padding-bottom:10px;
+      border-bottom:1px solid #eee;
+    }
+    .modal-field{margin-bottom:15px;}
+    .modal-field label{
+      display:block;margin-bottom:5px;
+      font-size:13px;color:#666;
+    }
+    .modal-field input, .modal-field select, .modal-field textarea{
+      width:100%;padding:8px;
+      border:1px solid #ddd;border-radius:6px;
+    }
+    .modal-field textarea{resize:vertical;}
+    .modal-buttons{
+      display:flex;gap:10px;margin-top:20px;
+    }
+    .modal-buttons button{
+      flex:1;padding:10px;
+      border-radius:8px;cursor:pointer;
+      border:none;
+    }
+    .btn-submit{background:#42A5F5;color:#fff;}
+    .btn-cancel{background:#ccc;color:#fff;}
+
+    .pagination{
+      display:flex;
+      justify-content:center;
+      gap:8px;
+      margin-top:15px;
+      padding-top:10px;
+      border-top:1px solid #eee;
+    }
+    .pagination button{
+      padding:5px 12px;
+      border:1px solid #ddd;
+      background:#fff;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .pagination button.active{
+      background:#42A5F5;
+      color:#fff;
+      border-color:#42A5F5;
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">👥 用户管理</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">管理员</span>
+    <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value" id="totalUsers">-</div>
+    <div class="stat-label">总用户数</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="totalUsersActive">-</div>
+    <div class="stat-label">正常用户</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="totalFrozen">-</div>
+    <div class="stat-label">冻结账户</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="totalMerchants">-</div>
+    <div class="stat-label">商家数</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="searchInput" placeholder="搜索用户名/手机号" onkeyup="if(event.keyCode===13) searchUsers()">
+  <select id="roleFilter">
+    <option value="all">全部角色</option>
+    <option value="user">普通用户</option>
+    <option value="merchant">商家</option>
+    <option value="admin">管理员</option>
+  </select>
+  <select id="statusFilter">
+    <option value="all">全部状态</option>
+    <option value="1">正常</option>
+    <option value="2">冻结</option>
+    <option value="0">禁用/待审核</option>
+  </select>
+  <button onclick="searchUsers()">搜索</button>
+  <button onclick="resetFilter()">重置</button>
+</div>
+
+<div class="list-box">
+  <div class="form-title">
+    <span>用户列表</span>
+    <div>
+      <button class="opt-btn" onclick="showMaintainModal()" style="background:#42A5F5;color:#fff;">🔧 账号维护</button>
+      <button class="opt-btn role-btn" onclick="showAddUserModal()" style="background:#4CAF50;">➕ 添加用户</button>
+    </div>
+  </div>
+  <div id="userList">加载中...</div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">首页</div>
+  <div class="nav-item active">用户</div>
+  <div class="nav-item" onclick="location.href='control.html'">管控</div>
+  <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  let allUsers = [];
+  let currentPage = 1;
+  const pageSize = 10;
+
+  window.onload = function() {
+    checkLogin();
+  };
+
+  function checkLogin() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+
+    if (!userId) {
+      window.location.href = '../../login.html';
+      return;
+    }
+    if (userRole !== 'admin') {
+      alert('权限不足');
+      window.location.href = '../../index.html';
+      return;
+    }
+    document.getElementById('userName').innerText = username || '管理员';
+    loadUsers();
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '../../login.html';
+  }
+
+  async function loadUsers() {
+    const wrap = document.getElementById('userList');
+    wrap.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+      const res = await axios.get(baseUrl + '/user/listAll');
+      if (res.data.code === 0) {
+        allUsers = res.data.data || [];
+        updateStatistics();
+        filterAndRender();
+      } else {
+        wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+      }
+    } catch(err) {
+      wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+    }
+  }
+
+  function updateStatistics() {
+    const total = allUsers.length;
+    const active = allUsers.filter(u => u.status === 1).length;
+    const frozen = allUsers.filter(u => u.status === 2).length;
+    const merchants = allUsers.filter(u => u.role === 'merchant').length;
+
+    document.getElementById('totalUsers').innerText = total;
+    document.getElementById('totalUsersActive').innerText = active;
+    document.getElementById('totalFrozen').innerText = frozen;
+    document.getElementById('totalMerchants').innerText = merchants;
+  }
+
+  function filterAndRender() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    let filtered = [...allUsers];
+
+    if (keyword) {
+      filtered = filtered.filter(u =>
+              u.username.toLowerCase().includes(keyword) ||
+              (u.phone && u.phone.includes(keyword))
+      );
+    }
+
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(u => u.role === roleFilter);
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(u => u.status == statusFilter);
+    }
+
+    renderUserList(filtered);
+  }
+
+  function renderUserList(users) {
+    const wrap = document.getElementById('userList');
+    const paginationDiv = document.getElementById('pagination');
+
+    if (users.length === 0) {
+      wrap.innerHTML = '<div class="empty-msg">暂无用户</div>';
+      paginationDiv.innerHTML = '';
+      return;
+    }
+
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageUsers = users.slice(start, end);
+    const totalPages = Math.ceil(users.length / pageSize);
+
+    let html = '';
+    for (let u of pageUsers) {
+      let roleText = u.role === 'admin' ? '管理员' : (u.role === 'merchant' ? '商家' : '普通用户');
+      let statusClass = '';
+      let statusText = '';
+
+      if (u.status === 1) {
+        statusClass = 'status-active';
+        statusText = '正常';
+      } else if (u.status === 2) {
+        statusClass = 'status-frozen';
+        statusText = '冻结';
+      } else if (u.status === 0 && u.role === 'merchant') {
+        statusClass = 'status-pending';
+        statusText = '待审核';
+      } else {
+        statusClass = 'status-disabled';
+        statusText = '已禁用';
+      }
+
+      html += `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-name">
+                            ${escapeHtml(u.username)}
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="user-detail">
+                            ID: ${u.id} | 角色: ${roleText} | 手机: ${u.phone || '-'} | 注册: ${formatDateTime(u.createTime)}
+                        </div>
+                    </div>
+                    <div class="user-actions">
+                        ${u.status === 1 ?
+              `<button class="opt-btn freeze-btn" onclick="freezeUser(${u.id})">❄️ 冻结</button>` :
+              (u.status === 2 ?
+                              `<button class="opt-btn unfreeze-btn" onclick="unfreezeUser(${u.id})">🔓 解冻</button>` :
+                              `<button class="opt-btn enable-btn" onclick="toggleUserStatus(${u.id}, 1)">启用</button>`
+              )
+      }
+                        <button class="opt-btn role-btn" onclick="showRoleModal(${u.id}, '${u.role}')">修改角色</button>
+                        <button class="opt-btn reset-pwd-btn" onclick="resetPassword(${u.id})">重置密码</button>
+                        <button class="opt-btn disable-btn" onclick="showViolationModal(${u.id}, '${u.username}')">⚠️ 违规处理</button>
+                    </div>
+                </div>
+            `;
+    }
+    wrap.innerHTML = html;
+
+    if (totalPages > 1) {
+      let paginationHtml = '';
+      for (let i = 1; i <= totalPages; i++) {
+        paginationHtml += `<button class="${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+      paginationDiv.innerHTML = paginationHtml;
+    } else {
+      paginationDiv.innerHTML = '';
+    }
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+    filterAndRender();
+  }
+
+  function searchUsers() {
+    currentPage = 1;
+    filterAndRender();
+  }
+
+  function resetFilter() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('roleFilter').value = 'all';
+    document.getElementById('statusFilter').value = 'all';
+    currentPage = 1;
+    filterAndRender();
+  }
+
+  // 冻结用户
+  async function freezeUser(userId) {
+    if (!confirm('确定要冻结该账户吗？冻结后用户将无法登录和使用功能。')) return;
+    try {
+      const res = await axios.post(baseUrl + '/user/freeze', null, { params: { id: userId } });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('冻结成功');
+        loadUsers();
+      } else {
+        alert('冻结失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('冻结失败');
+    }
+  }
+
+  // 解冻用户
+  async function unfreezeUser(userId) {
+    if (!confirm('确定要解冻该账户吗？')) return;
+    try {
+      const res = await axios.post(baseUrl + '/user/unfreeze', null, { params: { id: userId } });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('解冻成功');
+        loadUsers();
+      } else {
+        alert('解冻失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('解冻失败');
+    }
+  }
+
+  async function toggleUserStatus(userId, status) {
+    const action = status === 1 ? '启用' : '禁用';
+    if (!confirm(`确定要${action}该用户吗？`)) return;
+    try {
+      const res = await axios.post(baseUrl + '/user/toggleStatus', null, { params: { id: userId, status: status } });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert(`${action}成功`);
+        loadUsers();
+      } else {
+        alert(`${action}失败：` + res.data.msg);
+      }
+    } catch(err) {
+      alert(`${action}失败`);
+    }
+  }
+
+  function showRoleModal(userId, currentRole) {
+    const modalHtml = `
+            <div id="roleModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">修改用户角色</div>
+                    <div class="modal-field">
+                        <label>选择角色</label>
+                        <select id="newRole">
+                            <option value="user" ${currentRole === 'user' ? 'selected' : ''}>普通用户</option>
+                            <option value="merchant" ${currentRole === 'merchant' ? 'selected' : ''}>商家</option>
+                            <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>管理员</option>
+                        </select>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="updateRole(${userId})">确认修改</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function updateRole(userId) {
+    const newRole = document.getElementById('newRole').value;
+    if (!confirm(`确定将该用户角色改为${newRole === 'user' ? '普通用户' : (newRole === 'merchant' ? '商家' : '管理员')}吗？`)) return;
+    try {
+      const res = await axios.post(baseUrl + '/user/setRole', null, { params: { id: userId, role: newRole } });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('角色修改成功');
+        closeModal();
+        loadUsers();
+      } else {
+        alert('修改失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('修改失败');
+    }
+  }
+
+  async function resetPassword(userId) {
+    const newPwd = prompt('请输入新密码（默认123456）', '123456');
+    if (!newPwd) return;
+    try {
+      const res = await axios.post(baseUrl + '/user/resetPassword', null, { params: { id: userId, password: newPwd } });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('密码重置成功');
+      } else {
+        alert('重置失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('重置失败');
+    }
+  }
+
+  // 违规处理弹窗
+  function showViolationModal(userId, username) {
+    const modalHtml = `
+            <div id="violationModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">⚠️ 违规处理 - ${escapeHtml(username)}</div>
+                    <div class="modal-field">
+                        <label>违规类型</label>
+                        <select id="violationType">
+                            <option value="spam">发布垃圾信息</option>
+                            <option value="fraud">欺诈行为</option>
+                            <option value="abuse">恶意攻击</option>
+                            <option value="illegal">违法内容</option>
+                            <option value="other">其他违规</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label>处罚措施</label>
+                        <select id="punishment">
+                            <option value="warn">警告</option>
+                            <option value="freeze">冻结账户7天</option>
+                            <option value="freeze30">冻结账户30天</option>
+                            <option value="ban">永久封禁</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label>违规说明</label>
+                        <textarea id="violationDesc" rows="3" placeholder="请详细描述违规情况..."></textarea>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="processViolation(${userId})">确认处理</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function processViolation(userId) {
+    const violationType = document.getElementById('violationType').value;
+    const punishment = document.getElementById('punishment').value;
+    const desc = document.getElementById('violationDesc').value;
+
+    let action = '';
+    let statusChange = null;
+
+    if (punishment === 'warn') {
+      action = '警告';
+      statusChange = 1;
+    } else if (punishment === 'freeze') {
+      action = '冻结7天';
+      statusChange = 2;
+    } else if (punishment === 'freeze30') {
+      action = '冻结30天';
+      statusChange = 2;
+    } else {
+      action = '永久封禁';
+      statusChange = 0;
+    }
+
+    if (!confirm(`确定对该用户进行${action}处理吗？`)) return;
+
+    try {
+      // 根据处罚措施更新用户状态
+      if (statusChange === 2 || statusChange === 0) {
+        await axios.post(baseUrl + '/user/toggleStatus', null, { params: { id: userId, status: statusChange } });
+      }
+
+      // 记录违规信息（可以保存到违规记录表）
+      alert(`已对用户进行${action}处理`);
+      closeModal();
+      loadUsers();
+    } catch(err) {
+      alert('处理失败');
+    }
+  }
+
+  // 账号维护弹窗
+  function showMaintainModal() {
+    const modalHtml = `
+            <div id="maintainModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">🔧 账号批量维护</div>
+                    <div class="modal-field">
+                        <label>批量操作</label>
+                        <select id="batchAction">
+                            <option value="">请选择操作</option>
+                            <option value="export">导出用户列表</option>
+                            <option value="cleanInactive">清理30天未登录用户</option>
+                            <option value="cleanDisabled">清理已禁用账户</option>
+                        </select>
+                    </div>
+                    <div class="modal-field">
+                        <label>操作说明</label>
+                        <textarea id="maintainDesc" rows="4" readonly style="background:#f5f5f5;">
+导出用户列表：下载所有用户信息为CSV文件
+清理30天未登录用户：将30天未登录的用户标记为不活跃
+清理已禁用账户：永久删除已禁用超过90天的账户
+                        </textarea>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="executeMaintain()">执行操作</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  function executeMaintain() {
+    const action = document.getElementById('batchAction').value;
+    if (!action) {
+      alert('请选择要执行的操作');
+      return;
+    }
+
+    if (action === 'export') {
+      exportUsers();
+    } else if (action === 'cleanInactive') {
+      if (confirm('确定要清理30天未登录的用户吗？此操作将标记为不活跃。')) {
+        alert('功能开发中，即将推出');
+        closeModal();
+      }
+    } else if (action === 'cleanDisabled') {
+      if (confirm('确定要永久删除已禁用超过90天的账户吗？此操作不可恢复！')) {
+        alert('功能开发中，即将推出');
+        closeModal();
+      }
+    }
+  }
+
+  function exportUsers() {
+    let csv = 'ID,用户名,角色,状态,手机号,注册时间\n';
+    for (let u of allUsers) {
+      let roleText = u.role === 'admin' ? '管理员' : (u.role === 'merchant' ? '商家' : '普通用户');
+      let statusText = u.status === 1 ? '正常' : (u.status === 2 ? '冻结' : '禁用');
+      csv += `${u.id},${u.username},${roleText},${statusText},${u.phone || ''},${formatDateTime(u.createTime)}\n`;
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'users.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    alert('用户列表导出成功');
+    closeModal();
+  }
+
+  function showAddUserModal() {
+    const modalHtml = `
+            <div id="addUserModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">添加用户</div>
+                    <div class="modal-field">
+                        <label>用户名</label>
+                        <input type="text" id="newUsername" placeholder="请输入用户名">
+                    </div>
+                    <div class="modal-field">
+                        <label>密码</label>
+                        <input type="password" id="newPassword" placeholder="请输入密码" value="123456">
+                    </div>
+                    <div class="modal-field">
+                        <label>手机号</label>
+                        <input type="tel" id="newPhone" placeholder="请输入手机号">
+                    </div>
+                    <div class="modal-field">
+                        <label>角色</label>
+                        <select id="newRole">
+                            <option value="user">普通用户</option>
+                            <option value="merchant">商家</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="addUser()">确认添加</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function addUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value.trim();
+    const phone = document.getElementById('newPhone').value.trim();
+    const role = document.getElementById('newRole').value;
+
+    if (!username) {
+      alert('请填写用户名');
+      return;
+    }
+    if (!password) {
+      alert('请填写密码');
+      return;
+    }
+
+    try {
+      const res = await axios.post(baseUrl + '/user/register', {
+        username: username,
+        password: password,
+        phone: phone,
+        role: role
+      });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('添加成功');
+        closeModal();
+        loadUsers();
+      } else {
+        alert('添加失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('添加失败');
+    }
+  }
+
+  function closeModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) modal.remove();
+  }
+
+  function formatDateTime(dateStr) {
+    if (!dateStr) return '未知';
+    return dateStr.replace('T', ' ');
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+  }
+</script>
+</body>
+</html>

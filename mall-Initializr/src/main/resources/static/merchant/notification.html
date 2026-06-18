@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>消息通知</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#f5f7fa;font-family:微软雅黑;padding-bottom:70px;}
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+    .logo{font-size:18px;font-weight:bold;color:#3b82f6;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .logout-btn{background:#ef4444;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .back-btn{background:#e2e8f0;color:#333;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .container{padding:75px 15px 15px;}
+    .notification-card{background:#fff;border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);cursor:pointer;}
+    .notification-card.unread{background:#eef2ff;border-left:3px solid #3b82f6;}
+    .notification-title{font-size:14px;font-weight:bold;margin-bottom:8px;}
+    .notification-title .type-badge{font-size:10px;padding:2px 8px;border-radius:12px;margin-left:8px;}
+    .type-warning{background:#FFF3E0;color:#FF9800;}
+    .type-suspend{background:#FFEBEE;color:#f44336;}
+    .type-dismiss{background:#E8F5E9;color:#4CAF50;}
+    .notification-content{font-size:12px;color:#666;margin-bottom:8px;line-height:1.5;}
+    .notification-time{font-size:11px;color:#999;}
+    .empty-msg{text-align:center;padding:40px;color:#999;}
+    .loading{text-align:center;padding:40px;color:#999;}
+    .header-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+    .read-all-btn{background:#3b82f6;color:#fff;border:none;padding:6px 16px;border-radius:20px;cursor:pointer;font-size:12px;}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #eee;}
+    .nav-item{flex:1;text-align:center;font-size:12px;color:#888;cursor:pointer;padding:4px 0;}
+    .nav-item.active{color:#3b82f6;font-weight:600;}
+  </style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="logo">🔔 消息通知</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">商家</span>
+    <button class="back-btn" onclick="location.href='index.html'">返回</button>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+<div class="container">
+  <div class="header-actions">
+    <h3>📬 我的消息</h3>
+    <button class="read-all-btn" onclick="markAllRead()">全部标为已读</button>
+  </div>
+  <div id="notificationList">加载中...</div>
+</div>
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">🏠 首页</div>
+  <div class="nav-item" onclick="location.href='product.html'">📦 商品</div>
+  <div class="nav-item" onclick="location.href='order.html'">📋 订单</div>
+  <div class="nav-item active" onclick="location.href='notification.html'">🔔 消息</div>
+</div>
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  window.onload = function() { checkLogin(); loadNotifications(); };
+
+  function checkLogin() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    if (!userId) { window.location.href = '../../login.html'; return; }
+    if (userRole !== 'merchant') { window.location.href = '../../user/index.html'; return; }
+    document.getElementById('userName').innerText = localStorage.getItem('username') || '商家';
+  }
+
+  function logout() { localStorage.clear(); window.location.href = '../../login.html'; }
+
+  async function loadNotifications() {
+    const wrap = document.getElementById('notificationList');
+    wrap.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+      const userId = localStorage.getItem('userId');
+      const res = await axios.get(baseUrl + '/notification/list?userId=' + userId);
+      if (res.data.code === 0) {
+        const list = res.data.data || [];
+        if (list.length === 0) { wrap.innerHTML = '<div class="empty-msg">暂无通知</div>'; return; }
+        let html = '';
+        for (let n of list) {
+          let typeClass = '';
+          let typeText = '';
+          switch(n.type) {
+            case 'warning': typeClass = 'type-warning'; typeText = '警告'; break;
+            case 'suspend': typeClass = 'type-suspend'; typeText = '封禁'; break;
+            case 'dismiss': typeClass = 'type-dismiss'; typeText = '驳回'; break;
+            default: typeClass = ''; typeText = '系统';
+          }
+          html += `<div class="notification-card ${n.isRead === 0 ? 'unread' : ''}" onclick="markAsRead(${n.id})">
+            <div class="notification-title">
+              ${escapeHtml(n.title)}
+              <span class="type-badge ${typeClass}">${typeText}</span>
+            </div>
+            <div class="notification-content">${escapeHtml(n.content)}</div>
+            <div class="notification-time">${formatDateTime(n.createTime)}</div>
+          </div>`;
+        }
+        wrap.innerHTML = html;
+      }
+    } catch(err) { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+  }
+
+  async function markAsRead(id) {
+    try {
+      await axios.post(baseUrl + '/notification/read', null, { params: { id: id } });
+      loadNotifications();
+    } catch(err) { console.error('标记失败:', err); }
+  }
+
+  async function markAllRead() {
+    try {
+      const userId = localStorage.getItem('userId');
+      await axios.post(baseUrl + '/notification/readAll', null, { params: { userId: userId } });
+      loadNotifications();
+    } catch(err) { console.error('标记失败:', err); }
+  }
+
+  function formatDateTime(dateStr) { if(!dateStr) return '未知'; return dateStr.replace('T', ' '); }
+  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+</script>
+</body>
+</html>

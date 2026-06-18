@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平台管控 - 平台管理员</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+        .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+        .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+        .user-info{display:flex;align-items:center;gap:15px;}
+        .user-name{font-size:14px;color:#333;}
+        .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+
+        .tab-bar{display:flex;background:#fff;margin-top:65px;margin-left:10px;margin-right:10px;border-radius:12px;overflow-x:auto;}
+        .tab{flex:1;text-align:center;padding:12px;cursor:pointer;background:#f5f5f5;font-size:14px;}
+        .tab.active{background:#42A5F5;color:#fff;}
+
+        .section{display:none;margin:10px;}
+        .section.active{display:block;}
+
+        .list-box{background:#fff;border-radius:12px;padding:12px;margin-bottom:15px;box-shadow:0 1px 4px #d1e7ff;}
+        .form-title{font-size:16px;font-weight:bold;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;}
+
+        .user-item,.merchant-item{
+            border-bottom:1px solid #eee;padding:12px 0;display:flex;justify-content:space-between;align-items:center;
+        }
+        .user-item:last-child,.merchant-item:last-child{border-bottom:none;}
+        .user-name{font-size:15px;font-weight:bold;margin-bottom:4px;}
+        .user-info{font-size:12px;color:#666;}
+        .status-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:8px;}
+        .status-active{background:#E8F5E9;color:#4CAF50;}
+        .status-pending{background:#FFF3E0;color:#FF9800;}
+        .status-disabled{background:#FFEBEE;color:#f44336;}
+        .opt-btn{border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;margin-left:5px;}
+        .enable-btn{background:#4CAF50;color:#fff;}
+        .disable-btn{background:#f44336;color:#fff;}
+        .approve-btn{background:#4CAF50;color:#fff;}
+        .reject-btn{background:#f44336;color:#fff;}
+
+        .system-setting{
+            display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eee;
+        }
+        .setting-label{font-weight:bold;}
+        .setting-value{color:#666;}
+        .setting-btn{background:#42A5F5;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;}
+
+        .loading{text-align:center;padding:40px;color:#999;}
+        .empty-msg{text-align:center;padding:40px;color:#999;}
+
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+        .nav-item.active{color:#42A5F5;font-weight:bold;}
+
+        .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;}
+        .modal-content{background:#fff;border-radius:12px;width:90%;max-width:400px;padding:20px;}
+        .modal-title{font-size:18px;font-weight:bold;margin-bottom:15px;}
+        .modal-field{margin-bottom:15px;}
+        .modal-field label{display:block;margin-bottom:5px;font-size:13px;color:#666;}
+        .modal-field input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;}
+        .modal-buttons{display:flex;gap:10px;margin-top:20px;}
+        .modal-buttons button{flex:1;padding:10px;border-radius:8px;cursor:pointer;border:none;}
+        .btn-submit{background:#42A5F5;color:#fff;}
+        .btn-cancel{background:#ccc;color:#fff;}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">⚙️ 平台管控</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">管理员</span>
+        <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <div class="tab active" onclick="switchTab('user')">用户管理</div>
+    <div class="tab" onclick="switchTab('merchant')">商家审核</div>
+    <div class="tab" onclick="switchTab('system')">系统设置</div>
+</div>
+
+<!-- 用户管理 -->
+<div id="userSection" class="section active">
+    <div class="list-box">
+        <div class="form-title">全部用户</div>
+        <div id="userList">加载中...</div>
+    </div>
+</div>
+
+<!-- 商家审核 -->
+<div id="merchantSection" class="section">
+    <div class="list-box">
+        <div class="form-title">待审核商家</div>
+        <div id="pendingMerchantList">加载中...</div>
+    </div>
+    <div class="list-box">
+        <div class="form-title">已认证商家</div>
+        <div id="approvedMerchantList">加载中...</div>
+    </div>
+</div>
+
+<!-- 系统设置 -->
+<div id="systemSection" class="section">
+    <div class="list-box">
+        <div class="form-title">系统参数配置</div>
+        <div class="system-setting">
+            <div>
+                <div class="setting-label">网站名称</div>
+                <div class="setting-value" id="siteName">购物商城</div>
+            </div>
+            <button class="setting-btn" onclick="editSetting('siteName')">编辑</button>
+        </div>
+        <div class="system-setting">
+            <div>
+                <div class="setting-label">客服电话</div>
+                <div class="setting-value" id="servicePhone">400-888-8888</div>
+            </div>
+            <button class="setting-btn" onclick="editSetting('servicePhone')">编辑</button>
+        </div>
+        <div class="system-setting">
+            <div>
+                <div class="setting-label">运营邮箱</div>
+                <div class="setting-value" id="serviceEmail">service@shop.com</div>
+            </div>
+            <button class="setting-btn" onclick="editSetting('serviceEmail')">编辑</button>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="location.href='index.html'">首页</div>
+    <div class="nav-item active">管控</div>
+    <div class="nav-item" onclick="location.href='violation.html'">违规</div>
+    <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8088/api";
+    let allUsers = [];
+
+    window.onload = function() {
+        checkLogin();
+        loadUsers();
+        loadPendingMerchants();
+        loadApprovedMerchants();
+    };
+
+    function checkLogin() {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+
+        if (!userId) {
+            window.location.href = '../login.html';
+            return;
+        }
+        if (userRole !== 'admin') {
+            alert('权限不足');
+            window.location.href = '../index.html';
+            return;
+        }
+        document.getElementById('userName').innerText = username || '管理员';
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = '../login.html';
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(`${tabName}Section`).classList.add('active');
+
+        if (tabName === 'user') loadUsers();
+        if (tabName === 'merchant') {
+            loadPendingMerchants();
+            loadApprovedMerchants();
+        }
+    }
+
+    // ========== 用户管理 ==========
+    async function loadUsers() {
+        const wrap = document.getElementById('userList');
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/user/listAll');
+            if (res.data.code === 0) {
+                const users = res.data.data || [];
+                renderUsers(users);
+            } else {
+                wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+            }
+        } catch(err) {
+            wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+        }
+    }
+
+    function renderUsers(users) {
+        const wrap = document.getElementById('userList');
+        if (users.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">暂无用户</div>';
+            return;
+        }
+
+        let html = '';
+        for (let u of users) {
+            let roleText = u.role === 'admin' ? '管理员' : (u.role === 'merchant' ? '商家' : '普通用户');
+            let statusClass = u.status === 1 ? 'status-active' : (u.status === 0 ? 'status-pending' : 'status-disabled');
+            let statusText = u.status === 1 ? '正常' : (u.status === 0 ? '待审核' : '已禁用');
+
+            html += `
+                <div class="user-item">
+                    <div>
+                        <div class="user-name">${escapeHtml(u.username)} <span class="status-badge ${statusClass}">${statusText}</span></div>
+                        <div class="user-info">ID: ${u.id} | 角色: ${roleText} | 手机: ${u.phone || '-'}</div>
+                    </div>
+                    <div>
+                        ${u.status === 1 ?
+                `<button class="opt-btn disable-btn" onclick="toggleUserStatus(${u.id}, 0)">禁用</button>` :
+                (u.status === 0 ? `<span style="color:#FF9800;">待审核</span>` : `<button class="opt-btn enable-btn" onclick="toggleUserStatus(${u.id}, 1)">启用</button>`)
+            }
+                    </div>
+                </div>
+            `;
+        }
+        wrap.innerHTML = html;
+    }
+
+    async function toggleUserStatus(userId, status) {
+        const action = status === 1 ? '启用' : '禁用';
+        if (!confirm(`确定要${action}该用户吗？`)) return;
+        try {
+            const res = await axios.post(baseUrl + '/user/toggleStatus', null, { params: { id: userId, status: status } });
+            if (res.data.code === 0 || res.data.code === 1) {
+                alert(`${action}成功`);
+                loadUsers();
+            } else {
+                alert(`${action}失败：` + res.data.msg);
+            }
+        } catch(err) {
+            alert(`${action}失败`);
+        }
+    }
+
+    // ========== 商家审核 ==========
+    async function loadPendingMerchants() {
+        const wrap = document.getElementById('pendingMerchantList');
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/user/pendingMerchants');
+            if (res.data.code === 0) {
+                const merchants = res.data.data || [];
+                renderPendingMerchants(merchants);
+            } else {
+                wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+            }
+        } catch(err) {
+            wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+        }
+    }
+
+    function renderPendingMerchants(merchants) {
+        const wrap = document.getElementById('pendingMerchantList');
+        if (merchants.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">暂无待审核商家</div>';
+            return;
+        }
+
+        let html = '';
+        for (let m of merchants) {
+            html += `
+                <div class="merchant-item">
+                    <div>
+                        <div class="user-name">${escapeHtml(m.username)} <span class="status-badge status-pending">待审核</span></div>
+                        <div class="user-info">ID: ${m.id} | 手机: ${m.phone || '-'} | 注册时间: ${formatDateTime(m.createTime)}</div>
+                    </div>
+                    <div>
+                        <button class="opt-btn approve-btn" onclick="auditMerchant(${m.id}, 1)">✓ 通过</button>
+                        <button class="opt-btn reject-btn" onclick="auditMerchant(${m.id}, 2)">✗ 拒绝</button>
+                    </div>
+                </div>
+            `;
+        }
+        wrap.innerHTML = html;
+    }
+
+    async function loadApprovedMerchants() {
+        const wrap = document.getElementById('approvedMerchantList');
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/user/approvedMerchants');
+            if (res.data.code === 0) {
+                const merchants = res.data.data || [];
+                renderApprovedMerchants(merchants);
+            } else {
+                wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+            }
+        } catch(err) {
+            wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+        }
+    }
+
+    function renderApprovedMerchants(merchants) {
+        const wrap = document.getElementById('approvedMerchantList');
+        if (merchants.length === 0) {
+            wrap.innerHTML = '<div class="empty-msg">暂无已认证商家</div>';
+            return;
+        }
+
+        let html = '';
+        for (let m of merchants) {
+            html += `
+                <div class="merchant-item">
+                    <div>
+                        <div class="user-name">${escapeHtml(m.username)} <span class="status-badge status-active">已认证</span></div>
+                        <div class="user-info">ID: ${m.id} | 手机: ${m.phone || '-'}</div>
+                    </div>
+                    <div>
+                        <button class="opt-btn disable-btn" onclick="toggleUserStatus(${m.id}, 0)">禁用</button>
+                    </div>
+                </div>
+            `;
+        }
+        wrap.innerHTML = html;
+    }
+
+    async function auditMerchant(userId, status) {
+        const action = status === 1 ? '通过' : '拒绝';
+        if (!confirm(`确定${action}该商家申请吗？`)) return;
+        try {
+            const res = await axios.post(baseUrl + '/user/auditMerchant', null, { params: { id: userId, status: status } });
+            if (res.data.code === 0 || res.data.code === 1) {
+                alert(`${action}成功`);
+                loadPendingMerchants();
+                loadApprovedMerchants();
+                loadUsers();
+            } else {
+                alert(`${action}失败：` + res.data.msg);
+            }
+        } catch(err) {
+            alert(`${action}失败`);
+        }
+    }
+
+    // ========== 系统设置 ==========
+    function editSetting(setting) {
+        const currentValue = document.getElementById(setting).innerText;
+        const labels = { siteName: '网站名称', servicePhone: '客服电话', serviceEmail: '运营邮箱' };
+
+        const modalHtml = `
+            <div id="settingModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">修改${labels[setting]}</div>
+                    <div class="modal-field">
+                        <input type="text" id="settingValue" value="${currentValue}" placeholder="请输入新值">
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn-submit" onclick="saveSetting('${setting}')">保存</button>
+                        <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function saveSetting(setting) {
+        const newValue = document.getElementById('settingValue').value.trim();
+        if (!newValue) {
+            alert('请输入内容');
+            return;
+        }
+        document.getElementById(setting).innerText = newValue;
+        closeModal();
+        alert('设置已保存');
+    }
+
+    function closeModal() {
+        const modal = document.querySelector('.modal');
+        if (modal) modal.remove();
+    }
+
+    function formatDateTime(dateStr) {
+        if (!dateStr) return '未知';
+        // 处理不同的日期格式
+        if (dateStr.includes('T')) {
+            return dateStr.replace('T', ' ').substring(0, 19);
+        }
+        return dateStr;
+    }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+</script>
+</body>
+</html>

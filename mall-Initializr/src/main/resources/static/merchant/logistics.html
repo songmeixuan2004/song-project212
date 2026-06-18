@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物流管理 - 商家后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#E3F2FD;font-family:微软雅黑;padding-bottom:70px;}
+        .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+        .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+        .user-info{display:flex;align-items:center;gap:15px;}
+        .user-name{font-size:14px;color:#333;}
+        .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .list-box{background:#fff;border-radius:12px;padding:12px;margin:75px 10px 15px;box-shadow:0 1px 4px #d1e7ff;}
+        .form-title{font-size:16px;font-weight:bold;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;}
+        .order-card{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 1px 4px #d1e7ff;}
+        .order-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:10px;}
+        .order-id{font-size:14px;font-weight:bold;}
+        .order-status{font-size:12px;padding:4px 10px;border-radius:20px;}
+        .status-1{background:#E3F2FD;color:#2196F3;}
+        .status-2{background:#E8F5E9;color:#4CAF50;}
+        .ship-btn{background:#4CAF50;color:#fff;border:none;padding:6px 20px;border-radius:20px;cursor:pointer;}
+        .loading{text-align:center;padding:40px;color:#999;}
+        .empty-msg{text-align:center;padding:40px;color:#999;}
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+        .nav-item.active{color:#42A5F5;}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">🚚 物流管理</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">加载中...</span>
+        <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="list-box">
+    <div class="form-title">待发货订单</div>
+    <div id="pendingList">加载中...</div>
+</div>
+
+<div class="list-box">
+    <div class="form-title">已发货订单</div>
+    <div id="shippedList">加载中...</div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="goTo('index.html')">🏠 首页</div>
+    <div class="nav-item" onclick="goTo('product.html')">📦 商品</div>
+    <div class="nav-item" onclick="goTo('order.html')">📋 订单</div>
+    <div class="nav-item" onclick="goTo('statistics.html')">📊 统计</div>
+</div>
+<script>
+    const baseUrl = "http://localhost:8088/api";
+
+    window.onload = function() {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+        if (!userId) { window.location.href = '../login.html'; return; }
+        if (userRole !== 'merchant') { window.location.href = '../user/index.html'; return; }
+        document.getElementById('userName').innerText = username || '商家';
+        loadLogistics();
+    };
+
+    function logout() { localStorage.clear(); window.location.href = '../login.html'; }
+
+    async function loadLogistics() {
+        await loadPendingOrders();
+        await loadShippedOrders();
+    }
+
+    async function loadPendingOrders() {
+        const wrap = document.getElementById("pendingList");
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/order/listAll');
+            if (res.data.code === 0) {
+                const pendingOrders = (res.data.data || []).filter(o => o.status === 1);
+                if (pendingOrders.length === 0) { wrap.innerHTML = '<div class="empty-msg">暂无待发货订单</div>'; return; }
+                let html = "";
+                for (let o of pendingOrders) {
+                    html += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span class="order-id">📋 订单号：${o.id}</span>
+                                <span class="order-status status-1">待发货</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <button class="ship-btn" onclick="shipOrder(${o.id})">🚚 发货</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                wrap.innerHTML = html;
+            } else { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+        } catch (err) { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+    }
+
+    async function loadShippedOrders() {
+        const wrap = document.getElementById("shippedList");
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+        try {
+            const res = await axios.get(baseUrl + '/order/listAll');
+            if (res.data.code === 0) {
+                const shippedOrders = (res.data.data || []).filter(o => o.status === 2);
+                if (shippedOrders.length === 0) { wrap.innerHTML = '<div class="empty-msg">暂无已发货订单</div>'; return; }
+                let html = "";
+                for (let o of shippedOrders) {
+                    html += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span class="order-id">📋 订单号：${o.id}</span>
+                                <span class="order-status status-2">已发货</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <button class="ship-btn" onclick="updateLogistics(${o.id})">📦 更新物流</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                wrap.innerHTML = html;
+            } else { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+        } catch (err) { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+    }
+
+    async function shipOrder(orderId) {
+        if (!confirm("确认发货？")) return;
+        const logisticsCompany = prompt("物流公司", "顺丰速运");
+        if (!logisticsCompany) return;
+        const logisticsNo = prompt("物流单号", "");
+        if (!logisticsNo) return;
+        try {
+            await axios.post(baseUrl + '/logistics/ship', null, { params: { orderId, logisticsNo, logisticsCompany } });
+            await axios.post(baseUrl + '/order/ship?orderId=' + orderId);
+            alert("发货成功！");
+            loadLogistics();
+        } catch (err) { alert("发货失败：" + (err.response?.data?.msg || err.message)); }
+    }
+
+    async function updateLogistics(orderId) {
+        const status = prompt("物流状态 (1已揽件,2运输中,3派送中,4已签收)", "2");
+        if (status === null) return;
+        const trackContent = prompt("轨迹信息", "");
+        if (!trackContent) return;
+        try {
+            const res = await axios.post(baseUrl + '/logistics/updateStatus', null, { params: { orderId, status, trackContent } });
+            if (res.data.code === 0 || res.data.code === 1) { alert("更新成功"); loadLogistics(); }
+            else { alert("更新失败：" + res.data.msg); }
+        } catch (err) { alert("更新失败"); }
+    }
+</script>
+</body>
+</html>

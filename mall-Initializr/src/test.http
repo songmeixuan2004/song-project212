@@ -1,0 +1,120 @@
+#### 1. 用户注册
+POST http://localhost:8088/api/user/register
+Content-Type: application/json
+
+{
+  "username": "malou",
+  "password": "123456"
+}
+
+### 2. 用户登录
+POST http://localhost:8088/api/user/login
+Content-Type: application/json
+
+{
+  "username": "coco",
+  "password": "123456"
+}
+
+### 3. 查看商品列表
+GET http://localhost:8088/api/product/list?merchantId=1
+
+#### 4. 加入购物车
+POST http://localhost:8088/api/cart/add
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "productId":20,
+  "quantity": 1
+}
+### 5. 查看购物车
+GET http://localhost:8088/api/cart/list?userId=1
+
+
+### 修改购物车数量
+POST http://localhost:8088/api/cart/update
+Content-Type: application/json
+
+{
+  "id": 1,
+  "quantity": 5
+}
+
+
+### 删除购物车单项
+DELETE http://localhost:8088/api/cart/delete/1
+
+
+### 清空购物车
+DELETE http://localhost:8088/api/cart/clear?userId=1
+
+
+### 6. 提交订单
+POST http://localhost:8088/api/order/create
+Content-Type: application/json
+
+{
+  "userId": 1,
+  "totalPrice": 168.50
+}
+
+### 7. 支付订单
+POST http://localhost:8088/api/order/pay?orderId=1
+
+#### ------------------------------
+#### 商家端接口（需带 userId=2 请求头）
+#### ------------------------------
+#
+#### 商家登录
+POST http://localhost:8088/api/user/login
+Content-Type: application/json
+
+{
+  "username": "merchant01",
+  "password": "123456"
+}
+
+#### 商家新增商品
+POST http://localhost:8088/api/merchant/product/add
+Content-Type: application/json
+userId: 2
+
+{
+  "name": "苹果16",
+  "price": 5999,
+  "stock": 100,
+  "pic": "http://pic.jpg",
+  "merchantId": 1
+}
+
+### 商家查看商品列表
+GET http://localhost:8088/api/merchant/product/list?merchantId=1
+
+
+### 订单发货
+POST http://localhost:8088/api/merchant/order/ship?orderId=1
+userId: 2
+
+#### ------------------------------
+#### 管理员端接口（需带 userId=3 请求头）
+#### ------------------------------
+#
+#### 管理员登录
+POST http://localhost:8088/api/user/login
+Content-Type: application/json
+
+{
+  "username": "admin01",
+  "password": "123456"
+}
+
+#### 查看所有订单
+GET http://localhost:8088/api/admin/order/list
+userId: 3
+
+#### 数据统计
+GET http://localhost:8088/api/admin/stat
+userId: 3
+
+

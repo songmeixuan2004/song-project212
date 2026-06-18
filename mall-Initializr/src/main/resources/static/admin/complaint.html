@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>投诉管理 - 平台管理员</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+    .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+
+    .filter-bar{
+      background:#fff;
+      margin-top:65px;
+      margin-left:10px;
+      margin-right:10px;
+      padding:12px;
+      border-radius:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .filter-bar select{
+      padding:8px 12px;
+      border:1px solid #ddd;
+      border-radius:8px;
+    }
+    .filter-bar button{
+      background:#42A5F5;
+      color:#fff;
+      border:none;
+      padding:8px 16px;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      padding:12px;
+    }
+    .stat-card{
+      background:#fff;
+      border-radius:12px;
+      padding:12px;
+      text-align:center;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .stat-value{font-size:24px;font-weight:bold;color:#42A5F5;}
+    .stat-label{font-size:12px;color:#666;margin-top:4px;}
+
+    .list-box{
+      background:#fff;
+      border-radius:12px;
+      padding:12px;
+      margin:0 10px 15px;
+      box-shadow:0 1px 4px #d1e7ff;
+    }
+    .form-title{
+      font-size:16px;
+      font-weight:bold;
+      margin-bottom:12px;
+      padding-bottom:8px;
+      border-bottom:1px solid #eee;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .complaint-card{
+      border-bottom:1px solid #f0f0f0;
+      padding:15px;
+    }
+    .complaint-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .complaint-title{font-weight:bold;font-size:14px;}
+    .complaint-status{
+      font-size:12px;
+      padding:2px 8px;
+      border-radius:12px;
+    }
+    .status-pending{background:#FFF3E0;color:#FF9800;}
+    .status-resolved{background:#E8F5E9;color:#4CAF50;}
+    .status-rejected{background:#FFEBEE;color:#f44336;}
+    .complaint-info{
+      font-size:13px;
+      color:#666;
+      margin-bottom:8px;
+    }
+    .complaint-content{
+      background:#f9f9f9;
+      padding:10px;
+      border-radius:8px;
+      margin:10px 0;
+      font-size:13px;
+    }
+
+    .reply-box{
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px solid #eee;
+    }
+    .reply-text{
+      width:100%;
+      padding:10px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      resize:vertical;
+    }
+    .reply-buttons{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+    }
+    .btn-submit{background:#42A5F5;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;}
+    .btn-resolve{background:#4CAF50;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;}
+    .btn-reject{background:#f44336;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;}
+
+    .existing-reply{
+      background:#f5f5f5;
+      padding:10px;
+      border-radius:8px;
+      margin-top:10px;
+    }
+
+    .loading{text-align:center;padding:40px;color:#999;}
+    .empty-msg{text-align:center;padding:40px;color:#999;}
+
+    .bottom-nav{
+      position:fixed;bottom:0;left:0;right:0;background:#fff;
+      display:flex;padding:8px 0;border-top:1px solid #E0E0E0;
+    }
+    .nav-item{
+      flex:1;text-align:center;font-size:12px;
+      color:#666;cursor:pointer;
+    }
+    .nav-item.active{color:#42A5F5;font-weight:bold;}
+
+    .tab-bar{
+      display:flex;
+      background:#fff;
+      margin-left:10px;
+      margin-right:10px;
+      border-radius:12px;
+      overflow:hidden;
+      margin-bottom:10px;
+    }
+    .tab{
+      flex:1;
+      text-align:center;
+      padding:12px;
+      cursor:pointer;
+      background:#f5f5f5;
+      font-size:14px;
+    }
+    .tab.active{background:#42A5F5;color:#fff;}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">💬 投诉反馈管理</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">管理员</span>
+    <button class="back-btn" onclick="location.href='index.html'">返回首页</button>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value" id="totalPending">-</div>
+    <div class="stat-label">待处理</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="totalResolved">-</div>
+    <div class="stat-label">已处理</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="totalRejected">-</div>
+    <div class="stat-label">已驳回</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <select id="statusFilter" onchange="loadComplaints()">
+    <option value="all">全部状态</option>
+    <option value="0">待处理</option>
+    <option value="1">已处理</option>
+    <option value="2">已驳回</option>
+  </select>
+  <select id="typeFilter" onchange="loadComplaints()">
+    <option value="all">全部类型</option>
+    <option value="merchant">商家投诉</option>
+    <option value="product">商品投诉</option>
+    <option value="order">订单投诉</option>
+  </select>
+  <button onclick="loadComplaints()">搜索</button>
+  <button onclick="resetFilter()">重置</button>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('pending')">待处理</div>
+  <div class="tab" onclick="switchTab('all')">全部投诉</div>
+</div>
+
+<div id="pendingSection" class="section">
+  <div class="list-box">
+    <div class="form-title">待处理投诉</div>
+    <div id="pendingList">加载中...</div>
+  </div>
+</div>
+
+<div id="allSection" class="section" style="display:none;">
+  <div class="list-box">
+    <div class="form-title">全部投诉</div>
+    <div id="allList">加载中...</div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">首页</div>
+  <div class="nav-item active">投诉</div>
+  <div class="nav-item" onclick="location.href='control.html'">管控</div>
+  <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  let currentTab = 'pending';
+
+  window.onload = function() {
+    checkLogin();
+  };
+
+  function checkLogin() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+
+    if (!userId) {
+      window.location.href = '../../login.html';
+      return;
+    }
+    if (userRole !== 'admin') {
+      alert('权限不足');
+      window.location.href = '../../index.html';
+      return;
+    }
+    document.getElementById('userName').innerText = username || '管理员';
+    loadComplaints();
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '../../login.html';
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (tab === 'pending') {
+      document.querySelector('.tab:first-child').classList.add('active');
+      document.getElementById('pendingSection').style.display = 'block';
+      document.getElementById('allSection').style.display = 'none';
+    } else {
+      document.querySelector('.tab:last-child').classList.add('active');
+      document.getElementById('pendingSection').style.display = 'none';
+      document.getElementById('allSection').style.display = 'block';
+    }
+    loadComplaints();
+  }
+
+  async function loadComplaints() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const typeFilter = document.getElementById('typeFilter').value;
+
+    // 更新统计
+    try {
+      const allRes = await axios.get(baseUrl + '/complaint/listAll');
+      if (allRes.data.code === 0) {
+        const all = allRes.data.data || [];
+        const pending = all.filter(c => c.status === 0).length;
+        const resolved = all.filter(c => c.status === 1).length;
+        const rejected = all.filter(c => c.status === 2).length;
+        document.getElementById('totalPending').innerText = pending;
+        document.getElementById('totalResolved').innerText = resolved;
+        document.getElementById('totalRejected').innerText = rejected;
+      }
+    } catch(e) {}
+
+    if (currentTab === 'pending') {
+      await loadPendingComplaints(statusFilter, typeFilter);
+    } else {
+      await loadAllComplaints(statusFilter, typeFilter);
+    }
+  }
+
+  async function loadPendingComplaints(statusFilter, typeFilter) {
+    const wrap = document.getElementById('pendingList');
+    wrap.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+      let url = baseUrl + '/complaint/pending';
+      const res = await axios.get(url);
+      if (res.data.code === 0) {
+        let complaints = res.data.data || [];
+        if (typeFilter !== 'all') {
+          complaints = complaints.filter(c => c.targetType === typeFilter);
+        }
+        renderComplaintList(wrap, complaints, true);
+      } else {
+        wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+      }
+    } catch(err) {
+      wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+    }
+  }
+
+  async function loadAllComplaints(statusFilter, typeFilter) {
+    const wrap = document.getElementById('allList');
+    wrap.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+      const res = await axios.get(baseUrl + '/complaint/listAll');
+      if (res.data.code === 0) {
+        let complaints = res.data.data || [];
+        if (statusFilter !== 'all') {
+          complaints = complaints.filter(c => c.status == statusFilter);
+        }
+        if (typeFilter !== 'all') {
+          complaints = complaints.filter(c => c.targetType === typeFilter);
+        }
+        renderComplaintList(wrap, complaints, false);
+      } else {
+        wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+      }
+    } catch(err) {
+      wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+    }
+  }
+
+  function renderComplaintList(wrap, complaints, showReplyForm) {
+    if (complaints.length === 0) {
+      wrap.innerHTML = '<div class="empty-msg">暂无投诉</div>';
+      return;
+    }
+
+    let html = '';
+    for (let c of complaints) {
+      let statusText = '';
+      let statusClass = '';
+      if (c.status === 0) { statusText = '待处理'; statusClass = 'status-pending'; }
+      else if (c.status === 1) { statusText = '已处理'; statusClass = 'status-resolved'; }
+      else { statusText = '已驳回'; statusClass = 'status-rejected'; }
+
+      let targetTypeText = c.targetType === 'merchant' ? '商家' : (c.targetType === 'product' ? '商品' : '订单');
+
+      html += `
+                <div class="complaint-card">
+                    <div class="complaint-header">
+                        <span class="complaint-title">投诉单号：${c.id} - ${escapeHtml(c.title || '无标题')}</span>
+                        <span class="complaint-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="complaint-info">
+                        👤 投诉人：${escapeHtml(c.userName || '用户')} (ID: ${c.userId})<br>
+                        🎯 投诉对象：${targetTypeText} - ${escapeHtml(c.targetName || c.targetId)}<br>
+                        ⏰ 投诉时间：${formatDateTime(c.createTime)}
+                    </div>
+                    <div class="complaint-content">
+                        <strong>投诉内容：</strong><br>
+                        ${escapeHtml(c.content || '无内容')}
+                    </div>
+            `;
+
+      if (c.reply) {
+        html += `
+                    <div class="existing-reply">
+                        <strong>📝 管理员回复：</strong><br>
+                        ${escapeHtml(c.reply)}<br>
+                        <span style="font-size:11px;color:#999;">回复时间：${formatDateTime(c.replyTime)}</span>
+                    </div>
+                `;
+      }
+
+      if (showReplyForm && c.status === 0) {
+        html += `
+                    <div class="reply-box">
+                        <textarea id="reply_${c.id}" class="reply-text" rows="3" placeholder="请输入回复内容..."></textarea>
+                        <div class="reply-buttons">
+                            <button class="btn-resolve" onclick="handleComplaint(${c.id}, 1)">✓ 同意并处理</button>
+                            <button class="btn-reject" onclick="handleComplaint(${c.id}, 2)">✗ 驳回投诉</button>
+                        </div>
+                    </div>
+                `;
+      } else if (c.status !== 0) {
+        html += `
+                    <div class="reply-box">
+                        <button class="btn-submit" onclick="deleteComplaint(${c.id})">删除记录</button>
+                    </div>
+                `;
+      }
+
+      html += `</div>`;
+    }
+    wrap.innerHTML = html;
+  }
+
+  async function handleComplaint(id, status) {
+    const replyText = document.getElementById(`reply_${id}`).value.trim();
+    if (!replyText) {
+      alert('请填写回复内容');
+      return;
+    }
+
+    const action = status === 1 ? '处理' : '驳回';
+    if (!confirm(`确定要${action}该投诉吗？`)) return;
+
+    try {
+      const res = await axios.post(baseUrl + '/complaint/reply', null, {
+        params: { id: id, reply: replyText, status: status }
+      });
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert(`${action}成功`);
+        loadComplaints();
+      } else {
+        alert(`${action}失败：` + res.data.msg);
+      }
+    } catch(err) {
+      alert(`${action}失败`);
+    }
+  }
+
+  async function deleteComplaint(id) {
+    if (!confirm('确定要删除该投诉记录吗？')) return;
+    try {
+      const res = await axios.delete(baseUrl + '/complaint/delete/' + id);
+      if (res.data.code === 0 || res.data.code === 1) {
+        alert('删除成功');
+        loadComplaints();
+      } else {
+        alert('删除失败：' + res.data.msg);
+      }
+    } catch(err) {
+      alert('删除失败');
+    }
+  }
+
+  function resetFilter() {
+    document.getElementById('statusFilter').value = 'all';
+    document.getElementById('typeFilter').value = 'all';
+    loadComplaints();
+  }
+
+  function formatDateTime(dateStr) {
+    if (!dateStr) return '未知';
+    return dateStr.replace('T', ' ');
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+  }
+</script>
+</body>
+</html>

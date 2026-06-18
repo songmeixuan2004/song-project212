@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的 - 商家后台</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+    .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .container{padding:80px 20px 20px;}
+    .info-card{background:#fff;border-radius:12px;padding:20px;margin-bottom:15px;box-shadow:0 1px 4px #d1e7ff;}
+    .info-title{font-size:16px;font-weight:bold;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #eee;}
+    .info-row{display:flex;padding:8px 0;}
+    .info-label{width:100px;color:#666;}
+    .info-value{color:#333;}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+    .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+    .nav-item.active{color:#42A5F5;font-weight:bold;}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">👤 我的信息</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">加载中...</span>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="info-card">
+    <div class="info-title">商家信息</div>
+    <div class="info-row">
+      <div class="info-label">用户名：</div>
+      <div class="info-value" id="displayUsername">-</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">角色：</div>
+      <div class="info-value">商家</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">用户ID：</div>
+      <div class="info-value" id="displayUserId">-</div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">首页</div>
+  <div class="nav-item" onclick="location.href='product.html'">商品</div>
+  <div class="nav-item" onclick="location.href='order.html'">订单</div>
+  <div class="nav-item active">我的</div>
+</div>
+
+<script>
+  window.onload = function() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+
+    if (!userId) {
+      window.location.href = '../login.html';
+      return;
+    }
+    if (userRole !== 'merchant') {
+      window.location.href = '../user/index.html';
+      return;
+    }
+    document.getElementById('userName').innerText = username || '商家';
+    document.getElementById('displayUsername').innerText = username || '商家';
+    document.getElementById('displayUserId').innerText = userId || '-';
+  };
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '../login.html';
+  }
+</script>
+</body>
+</html>

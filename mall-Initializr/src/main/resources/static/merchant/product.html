@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品管理 - 商家后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background:#E3F2FD;font-family:微软雅黑;padding-bottom:70px;}
+        .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+        .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+        .user-info{display:flex;align-items:center;gap:15px;}
+        .user-name{font-size:14px;color:#333;}
+        .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .back-btn{background:#42A5F5;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+        .form-box{background:#fff;border-radius:12px;padding:15px;margin:75px 10px 15px;box-shadow:0 1px 4px #d1e7ff;}
+        .form-title{font-size:16px;font-weight:bold;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #eee;}
+        .form-item{margin:12px 0;display:flex;align-items:center;}
+        .form-item label{width:80px;font-size:14px;}
+        .form-item input{flex:1;border:1px solid #cce0ff;padding:8px;border-radius:6px;outline:none;}
+        .add-btn{width:100%;background:#42A5F5;color:#fff;border:none;padding:10px;border-radius:8px;margin-top:10px;cursor:pointer;}
+        .list-box{background:#fff;border-radius:12px;padding:12px;margin:10px;box-shadow:0 1px 4px #d1e7ff;}
+        .item{border-bottom:1px solid #eee;padding:12px 0;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+        .item:last-child{border:none;}
+        .item-img{width:60px;height:60px;border-radius:8px;object-fit:cover;background:#f5f5f5;}
+        .item-info{flex:1;}
+        .item-name{font-size:15px;font-weight:bold;margin-bottom:4px;}
+        .item-detail{font-size:12px;color:#666;margin-top:4px;}
+        .stock-info{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:8px;}
+        .stock-high{background:#E8F5E9;color:#4CAF50;}
+        .stock-medium{background:#FFF3E0;color:#FF9800;}
+        .stock-low{background:#FFEBEE;color:#f44336;}
+        .status-on{background:#E8F5E9;color:#4CAF50;}
+        .status-off{background:#FFEBEE;color:#f44336;}
+        .opt-btn{border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;margin-left:5px;}
+        .edit{background:#42A5F5;color:#fff;}
+        .del{background:#ff6b6b;color:#fff;}
+        .on{background:#4CAF50;color:#fff;}
+        .off{background:#FF9800;color:#fff;}
+        .loading{text-align:center;padding:40px;color:#999;}
+        .empty-msg{text-align:center;padding:40px;color:#999;}
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+        .nav-item.active{color:#42A5F5;font-weight:bold;}
+        .pic-preview{max-width:60px;max-height:60px;border-radius:8px;margin-left:10px;}
+        .edit-pic-input{width:100%;padding:8px;border:1px solid #cce0ff;border-radius:6px;margin-top:10px;}
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">📦 商品管理</div>
+    <div class="user-info">
+        <span class="user-name" id="userName">加载中...</span>
+        <button class="back-btn" onclick="goBack()">返回首页</button>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
+</div>
+
+<div class="form-box">
+    <div class="form-title">发布新商品</div>
+    <div class="form-item">
+        <label>商品名称</label>
+        <input id="pName" placeholder="输入商品名称">
+    </div>
+    <div class="form-item">
+        <label>商品价格</label>
+        <input id="pPrice" type="number" step="0.01" placeholder="价格(小数)">
+    </div>
+    <div class="form-item">
+        <label>商品库存</label>
+        <input id="pStock" type="number" placeholder="库存数量">
+    </div>
+    <div class="form-item">
+        <label>图片地址</label>
+        <input id="pPic" placeholder="粘贴图片网络链接">
+    </div>
+    <button class="add-btn" onclick="addProduct()">发布商品</button>
+</div>
+
+<div class="list-box">
+    <div class="form-title">商品列表</div>
+    <div id="listWrap">加载中...</div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item" onclick="goBack()">首页</div>
+    <div class="nav-item active">商品</div>
+    <div class="nav-item" onclick="location.href='order.html'">订单</div>
+    <div class="nav-item" onclick="location.href='afterSale.html'">售后</div>
+</div>
+
+<script>
+    const baseUrl = "http://localhost:8088/api";
+    let currentMerchantId = null;
+
+    window.onload = function() {
+        checkLogin();
+    };
+
+    function checkLogin() {
+        const userId = localStorage.getItem('userId');
+        const userRole = localStorage.getItem('userRole');
+        const username = localStorage.getItem('username');
+
+        if (!userId) {
+            window.location.href = '../login.html';
+            return;
+        }
+        if (userRole !== 'merchant') {
+            window.location.href = '../user/index.html';
+            return;
+        }
+
+        currentMerchantId = parseInt(userId);
+        document.getElementById('userName').innerText = username || '商家';
+        loadProducts();
+    }
+
+    function goBack() {
+        window.location.href = 'index.html';
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = '../login.html';
+    }
+
+    async function loadProducts() {
+        const wrap = document.getElementById("listWrap");
+        wrap.innerHTML = '<div class="loading">加载中...</div>';
+
+        try {
+            const res = await axios.get(`${baseUrl}/product/list?merchantId=${currentMerchantId}`);
+            if (res.data.code === 0) {
+                const products = res.data.data || [];
+                if (products.length === 0) {
+                    wrap.innerHTML = '<div class="empty-msg">暂无商品</div>';
+                    return;
+                }
+                let html = "";
+                for (let p of products) {
+                    const stock = p.stock || 0;
+                    const stockClass = stock > 50 ? 'stock-high' : (stock > 10 ? 'stock-medium' : 'stock-low');
+                    const stockText = stock > 50 ? '充足' : (stock > 10 ? '一般' : (stock > 0 ? '紧张' : '缺货'));
+                    const picHtml = p.pic ? `<img src="${p.pic}" class="item-img" onerror="this.style.display='none'">` : '<div class="item-img" style="background:#f5f5f5;display:flex;align-items:center;justify-content:center;">📦</div>';
+
+                    html += `
+                        <div class="item">
+                            ${picHtml}
+                            <div class="item-info">
+                                <div class="item-name">${escapeHtml(p.name)}
+                                    <span class="stock-info ${stockClass}">${stockText}</span>
+                                    <span class="stock-info ${p.status === 1 ? 'status-on' : 'status-off'}">${p.status === 1 ? '上架' : '下架'}</span>
+                                </div>
+                                <div class="item-detail">价格：¥${p.price} | 库存：${stock}</div>
+                            </div>
+                            <div>
+                                <button class="opt-btn edit" onclick="editProduct(${p.id}, '${escapeHtml(p.name)}', ${p.price}, ${stock}, '${escapeHtml(p.pic || '')}')">编辑</button>
+                                ${p.status === 1 ? '<button class="opt-btn off" onclick="toggleStatus(' + p.id + ', 0)">下架</button>' : '<button class="opt-btn on" onclick="toggleStatus(' + p.id + ', 1)">上架</button>'}
+                                <button class="opt-btn del" onclick="deleteProduct(${p.id})">删除</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                wrap.innerHTML = html;
+            } else {
+                wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+            }
+        } catch(err) {
+            wrap.innerHTML = '<div class="empty-msg">加载失败</div>';
+        }
+    }
+
+    async function addProduct() {
+        const name = document.getElementById("pName").value.trim();
+        const price = document.getElementById("pPrice").value;
+        const stock = document.getElementById("pStock").value;
+        const pic = document.getElementById("pPic").value.trim();
+
+        if (!name || !price || !stock) {
+            alert("请填写完整信息");
+            return;
+        }
+
+        try {
+            const res = await axios.post(baseUrl + '/product', {
+                name, price, stock, pic, merchantId: currentMerchantId
+            });
+            if (res.data.code === 0) {
+                alert("发布成功");
+                document.getElementById("pName").value = "";
+                document.getElementById("pPrice").value = "";
+                document.getElementById("pStock").value = "";
+                document.getElementById("pPic").value = "";
+                loadProducts();
+            } else {
+                alert("发布失败：" + res.data.msg);
+            }
+        } catch (err) {
+            alert("发布失败");
+        }
+    }
+
+    async function deleteProduct(id) {
+        if (!confirm("确定删除该商品吗？")) return;
+        try {
+            const res = await axios.delete(baseUrl + '/product/test', { params: { id } });
+            if (res.data.code === 0) {
+                alert("删除成功");
+                loadProducts();
+            } else {
+                alert("删除失败");
+            }
+        } catch (err) {
+            alert("删除失败");
+        }
+    }
+
+    function editProduct(id, name, price, stock, pic) {
+        // 使用自定义弹窗
+        const modalHtml = `
+            <div id="editModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;">
+                <div style="background:#fff;border-radius:12px;width:90%;max-width:400px;padding:20px;">
+                    <h3 style="margin-bottom:15px;">编辑商品</h3>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;margin-bottom:5px;">商品名称</label>
+                        <input type="text" id="editName" value="${escapeHtml(name)}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;margin-bottom:5px;">商品价格</label>
+                        <input type="number" id="editPrice" value="${price}" step="0.01" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;margin-bottom:5px;">商品库存</label>
+                        <input type="number" id="editStock" value="${stock}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;margin-bottom:5px;">图片地址</label>
+                        <input type="text" id="editPic" value="${escapeHtml(pic)}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                        <div style="margin-top:8px;">
+                            <img id="editPicPreview" src="${pic}" style="max-width:100px;max-height:100px;border-radius:8px;${pic ? '' : 'display:none;'}" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:20px;">
+                        <button onclick="saveEdit(${id})" style="flex:1;background:#42A5F5;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;">保存</button>
+                        <button onclick="closeEditModal()" style="flex:1;background:#ccc;color:#fff;border:none;padding:10px;border-radius:6px;cursor:pointer;">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // 图片预览功能
+        const picInput = document.getElementById('editPic');
+        const picPreview = document.getElementById('editPicPreview');
+        picInput.oninput = function() {
+            const url = this.value.trim();
+            if (url) {
+                picPreview.src = url;
+                picPreview.style.display = 'block';
+            } else {
+                picPreview.style.display = 'none';
+            }
+        };
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editModal');
+        if (modal) modal.remove();
+    }
+
+    function saveEdit(id) {
+        const newName = document.getElementById('editName').value.trim();
+        const newPrice = document.getElementById('editPrice').value;
+        const newStock = document.getElementById('editStock').value;
+        const newPic = document.getElementById('editPic').value.trim();
+
+        if (!newName || !newPrice || !newStock) {
+            alert("请填写完整信息");
+            return;
+        }
+
+        axios.put(baseUrl + '/product', {
+            id, name: newName, price: newPrice, stock: newStock, pic: newPic, merchantId: currentMerchantId
+        }).then(res => {
+            if (res.data.code === 0) {
+                alert("修改成功");
+                closeEditModal();
+                loadProducts();
+            } else {
+                alert("修改失败：" + res.data.msg);
+            }
+        }).catch(() => alert("修改失败"));
+    }
+
+    async function toggleStatus(id, targetStatus) {
+        const action = targetStatus === 1 ? '上架' : '下架';
+        if (!confirm(`确定要${action}该商品吗？`)) return;
+
+        const url = targetStatus === 1 ? '/product/onSale' : '/product/offSale';
+        try {
+            const res = await axios.post(baseUrl + url, null, { params: { id, merchantId: currentMerchantId } });
+            if (res.data.code === 0) {
+                alert(`${action}成功`);
+                loadProducts();
+            } else {
+                alert(`${action}失败`);
+            }
+        } catch (err) {
+            alert(`${action}失败`);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+    }
+</script>
+</body>
+</html>

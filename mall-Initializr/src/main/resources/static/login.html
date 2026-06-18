@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录注册</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: '微软雅黑', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container{
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+    .form-box{
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px 25px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .tabs{
+      display: flex;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #eee;
+    }
+    .tab{
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 16px;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.3s;
+    }
+    .tab.active{
+      color: #667eea;
+      border-bottom: 2px solid #667eea;
+      margin-bottom: -2px;
+    }
+    .tab-content{
+      display: none;
+    }
+    .tab-content.active{
+      display: block;
+    }
+    .form-group{
+      margin-bottom: 18px;
+    }
+    .form-group label{
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: #666;
+    }
+    .form-group input{
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-group input:focus{
+      border-color: #667eea;
+    }
+    .btn{
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn:hover{
+      opacity: 0.9;
+    }
+    .role-select{
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .role-option{
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .role-option.selected{
+      border-color: #667eea;
+      background: #f0f0ff;
+      color: #667eea;
+    }
+    .merchant-fields{
+      display: none;
+    }
+    .merchant-fields.show{
+      display: block;
+    }
+    .toast{
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="form-box">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">登录</div>
+      <div class="tab" onclick="switchTab('register')">注册</div>
+    </div>
+
+    <!-- 登录表单 -->
+    <div id="loginTab" class="tab-content active">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="loginUsername" placeholder="请输入用户名">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPassword" placeholder="请输入密码">
+      </div>
+      <button class="btn" onclick="login()">登录</button>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerTab" class="tab-content">
+      <div class="role-select">
+        <div class="role-option selected" data-role="user" onclick="selectRole('user')">普通用户</div>
+        <div class="role-option" data-role="merchant" onclick="selectRole('merchant')">商家</div>
+      </div>
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="regUsername" placeholder="请输入用户名">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="regPassword" placeholder="请输入密码">
+      </div>
+      <div class="form-group">
+        <label>确认密码</label>
+        <input type="password" id="regConfirmPwd" placeholder="请再次输入密码">
+      </div>
+      <div class="form-group">
+        <label>手机号</label>
+        <input type="tel" id="regPhone" placeholder="请输入手机号">
+      </div>
+      <div id="merchantFields" class="merchant-fields">
+        <div class="form-group">
+          <label>店铺名称</label>
+          <input type="text" id="shopName" placeholder="请输入店铺名称">
+        </div>
+      </div>
+      <button class="btn" onclick="register()">注册</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  let selectedRole = "user";
+
+  function switchTab(tab) {
+    var tabs = document.querySelectorAll('.tab');
+    tabs.forEach(function(t) {
+      t.classList.remove('active');
+    });
+    if(tab === 'login') {
+      tabs[0].classList.add('active');
+      document.getElementById('loginTab').classList.add('active');
+      document.getElementById('registerTab').classList.remove('active');
+    } else {
+      tabs[1].classList.add('active');
+      document.getElementById('registerTab').classList.add('active');
+      document.getElementById('loginTab').classList.remove('active');
+    }
+  }
+
+  function selectRole(role) {
+    selectedRole = role;
+    var options = document.querySelectorAll('.role-option');
+    options.forEach(function(opt) {
+      opt.classList.remove('selected');
+      if(opt.getAttribute('data-role') === role) {
+        opt.classList.add('selected');
+      }
+    });
+
+    var merchantFields = document.getElementById('merchantFields');
+    if(role === 'merchant') {
+      merchantFields.classList.add('show');
+    } else {
+      merchantFields.classList.remove('show');
+    }
+  }
+
+  function showToast(msg) {
+    var oldToast = document.querySelector('.toast');
+    if(oldToast) oldToast.remove();
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 2000);
+  }
+
+  function login() {
+    var username = document.getElementById('loginUsername').value.trim();
+    var password = document.getElementById('loginPassword').value.trim();
+
+    if(!username || !password) {
+      showToast("请填写用户名和密码");
+      return;
+    }
+
+    axios.post(baseUrl + '/user/login', {
+      username: username,
+      password: password
+    })
+            .then(function(res) {
+              if(res.data.code === 0 || res.data.code === 1) {
+                var user = res.data.data;
+                console.log("登录用户:", user);
+
+                showToast("登录成功！");
+
+                // 保存用户信息
+                localStorage.setItem('userId', user.id);
+                localStorage.setItem('username', user.username);
+                localStorage.setItem('userRole', user.role);
+
+                // 根据角色跳转不同页面
+                if(user.role === 'admin') {
+                  window.location.href = 'admin/index.html';
+                } else if(user.role === 'merchant') {
+                  window.location.href = 'merchant/index.html';
+                } else {
+                  window.location.href = 'user/index.html';
+                }
+              } else {
+                showToast("登录失败：" + res.data.msg);
+              }
+            })
+            .catch(function(err) {
+              console.error("登录错误:", err);
+              showToast("登录失败：" + (err.response?.data?.msg || err.message));
+            });
+  }
+
+  function register() {
+    var username = document.getElementById('regUsername').value.trim();
+    var password = document.getElementById('regPassword').value.trim();
+    var confirmPwd = document.getElementById('regConfirmPwd').value.trim();
+    var phone = document.getElementById('regPhone').value.trim();
+    var shopName = document.getElementById('shopName').value.trim();
+
+    if(!username) {
+      showToast("请填写用户名");
+      return;
+    }
+    if(!password) {
+      showToast("请填写密码");
+      return;
+    }
+    if(password !== confirmPwd) {
+      showToast("两次输入的密码不一致");
+      return;
+    }
+
+    var url = baseUrl + '/user/register';
+    var data = {
+      username: username,
+      password: password,
+      phone: phone,
+      role: selectedRole
+    };
+
+    if(selectedRole === 'merchant') {
+      if(!shopName) {
+        showToast("请填写店铺名称");
+        return;
+      }
+      url = baseUrl + '/user/registerMerchant?shopName=' + encodeURIComponent(shopName);
+    }
+
+    axios.post(url, data)
+            .then(function(res) {
+              if(res.data.code === 0 || res.data.code === 1) {
+                showToast("注册成功！请登录");
+                switchTab('login');
+                document.getElementById('loginUsername').value = username;
+              } else {
+                showToast("注册失败：" + res.data.msg);
+              }
+            })
+            .catch(function(err) {
+              console.error("注册错误:", err);
+              showToast("注册失败：" + (err.response?.data?.msg || err.message));
+            });
+  }
+</script>
+</body>
+</html>

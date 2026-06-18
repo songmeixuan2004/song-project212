@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>违规处理 - 平台管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#f0f2f5;font-family:微软雅黑;padding-bottom:70px;}
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+    .logo{font-size:18px;font-weight:bold;color:#ff4d4f;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .back-btn{background:#e2e8f0;color:#333;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:75px 15px 10px;}
+    .stat-card{background:#fff;border-radius:12px;padding:15px;text-align:center;}
+    .stat-value{font-size:28px;font-weight:bold;color:#ff4d4f;}
+    .stat-label{font-size:12px;color:#999;margin-top:5px;}
+    .list-box{background:#fff;border-radius:12px;margin:10px 15px;padding:15px;}
+    .section-title{font-size:16px;font-weight:bold;margin-bottom:15px;padding-bottom:8px;border-bottom:1px solid #eee;}
+    .violation-card{background:#fff;border-radius:12px;padding:15px;margin-bottom:12px;border:1px solid #f0f0f0;}
+    .violation-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+    .violation-id{font-size:13px;font-weight:bold;color:#ff4d4f;}
+    .violation-status{font-size:11px;padding:3px 10px;border-radius:20px;}
+    .status-pending{background:#FFF3E0;color:#FF9800;}
+    .status-approved{background:#E8F5E9;color:#4CAF50;}
+    .status-rejected{background:#FFEBEE;color:#f44336;}
+    .info-row{display:flex;flex-wrap:wrap;gap:15px;margin-bottom:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;}
+    .info-item{min-width:140px;}
+    .info-label{font-size:11px;color:#999;}
+    .info-value{font-size:13px;color:#333;}
+    .action-buttons{display:flex;gap:10px;margin-top:12px;justify-content:flex-end;}
+    .btn-warn{background:#FF9800;color:#fff;border:none;padding:6px 16px;border-radius:20px;cursor:pointer;}
+    .btn-suspend{background:#f44336;color:#fff;border:none;padding:6px 16px;border-radius:20px;cursor:pointer;}
+    .btn-dismiss{background:#4CAF50;color:#fff;border:none;padding:6px 16px;border-radius:20px;cursor:pointer;}
+    .remark-input{padding:6px 12px;border:1px solid #ddd;border-radius:6px;width:200px;}
+    .loading{text-align:center;padding:40px;color:#999;}
+    .empty-msg{text-align:center;padding:40px;color:#999;}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;}
+    .modal-content{background:#fff;border-radius:12px;width:90%;max-width:400px;padding:20px;}
+    .modal-title{font-size:16px;font-weight:bold;margin-bottom:15px;}
+    .modal-field{margin-bottom:15px;}
+    .modal-field label{display:block;margin-bottom:5px;font-size:12px;color:#666;}
+    .modal-field input,.modal-field select{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;}
+    .modal-buttons{display:flex;gap:10px;margin-top:20px;}
+    .modal-buttons button{flex:1;padding:8px;border-radius:6px;cursor:pointer;border:none;}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #eee;}
+    .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+    .nav-item.active{color:#ff4d4f;font-weight:bold;}
+  </style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="logo">⚠️ 违规处理</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">管理员</span>
+    <button class="back-btn" onclick="location.href='index.html'">返回</button>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-value" id="pendingCount">-</div><div class="stat-label">待处理</div></div>
+  <div class="stat-card"><div class="stat-value" id="warnCount">-</div><div class="stat-label">已警告</div></div>
+  <div class="stat-card"><div class="stat-value" id="suspendCount">-</div><div class="stat-label">已封禁</div></div>
+  <div class="stat-card"><div class="stat-value" id="dismissCount">-</div><div class="stat-label">已驳回</div></div>
+</div>
+<div class="list-box">
+  <div class="section-title">📋 违规举报列表</div>
+  <div id="violationList">加载中...</div>
+</div>
+<div class="bottom-nav">
+  <div class="nav-item" onclick="location.href='index.html'">🏠 首页</div>
+  <div class="nav-item active" onclick="location.href='violation.html'">⚠️ 违规</div>
+  <div class="nav-item" onclick="location.href='users.html'">👥 用户</div>
+</div>
+<script>
+  const baseUrl = "http://localhost:8088/api";
+  let allViolations = [];
+
+  window.onload = function() {
+    checkLogin();
+    loadViolations();
+  };
+
+  function checkLogin() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+    if (!userId) { window.location.href = '../../login.html'; return; }
+    if (userRole !== 'admin') { alert('您没有管理员权限'); window.location.href = '../../user/index.html'; return; }
+    document.getElementById('userName').innerText = username || '管理员';
+  }
+
+  function logout() { localStorage.clear(); window.location.href = '../../login.html'; }
+
+  async function loadViolations() {
+    const wrap = document.getElementById('violationList');
+    wrap.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+      const res = await axios.get(baseUrl + '/violation/listAll');
+      if (res.data.code === 0) {
+        allViolations = res.data.data || [];
+        updateStats();
+        renderViolations();
+      } else { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+    } catch(err) { wrap.innerHTML = '<div class="empty-msg">加载失败</div>'; }
+  }
+
+  function updateStats() {
+    const pending = allViolations.filter(v => v.status === 0).length;
+    const warned = allViolations.filter(v => v.status === 1).length;
+    const suspended = allViolations.filter(v => v.status === 2).length;
+    const dismissed = allViolations.filter(v => v.status === 3).length;
+    document.getElementById('pendingCount').innerText = pending;
+    document.getElementById('warnCount').innerText = warned;
+    document.getElementById('suspendCount').innerText = suspended;
+    document.getElementById('dismissCount').innerText = dismissed;
+  }
+
+  function renderViolations() {
+    const wrap = document.getElementById('violationList');
+    if (allViolations.length === 0) { wrap.innerHTML = '<div class="empty-msg">暂无违规举报</div>'; return; }
+    let html = '';
+    for (let v of allViolations) {
+      let statusText = '', statusClass = '';
+      if (v.status === 0) { statusText = '待处理'; statusClass = 'status-pending'; }
+      else if (v.status === 1) { statusText = '已警告'; statusClass = 'status-approved'; }
+      else if (v.status === 2) { statusText = '已封禁'; statusClass = 'status-rejected'; }
+      else { statusText = '已驳回'; statusClass = 'status-approved'; }
+      html += `
+                <div class="violation-card" data-id="${v.id}">
+                    <div class="violation-header">
+                        <span class="violation-id">举报ID：${v.id}</span>
+                        <span class="violation-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item"><div class="info-label">举报人</div><div class="info-value">${escapeHtml(v.reporterName || '用户')} (ID:${v.reporterId})</div></div>
+                        <div class="info-item"><div class="info-label">被举报人</div><div class="info-value">${escapeHtml(v.targetName || '用户')} (ID:${v.targetId})</div></div>
+                        <div class="info-item"><div class="info-label">被举报人类型</div><div class="info-value">${v.targetType === 1 ? '用户' : '商家'}</div></div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item"><div class="info-label">违规类型</div><div class="info-value">${getViolationTypeText(v.type)}</div></div>
+                        <div class="info-item"><div class="info-label">举报时间</div><div class="info-value">${formatDateTime(v.createTime)}</div></div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-item"><div class="info-label">举报内容</div><div class="info-value">${escapeHtml(v.content)}</div></div>
+                    </div>
+                    ${v.evidence ? `<div class="info-row"><div class="info-item"><div class="info-label">证据</div><div class="info-value"><a href="${v.evidence}" target="_blank">查看证据</a></div></div></div>` : ''}
+                    <div class="info-row">
+                        <div class="info-item"><div class="info-label">处理结果</div><div class="info-value">${v.handleResult || '未处理'}</div></div>
+                    </div>
+            `;
+      if (v.status === 0) {
+        html += `
+                    <div class="action-buttons">
+                        <input type="text" id="remark_${v.id}" class="remark-input" placeholder="处理备注">
+                        <button class="btn-warn" onclick="handleViolation(${v.id}, 1, '警告')">⚠️ 警告</button>
+                        <button class="btn-suspend" onclick="showSuspendModal(${v.id})">🔒 封禁</button>
+                        <button class="btn-dismiss" onclick="handleViolation(${v.id}, 3, '驳回')">❌ 驳回</button>
+                    </div>
+                `;
+      }
+      html += `</div>`;
+    }
+    wrap.innerHTML = html;
+  }
+
+  function getViolationTypeText(type) {
+    const types = {1:'广告 spam',2:'色情内容',3:'违规内容',4:'欺诈行为',5:'恶意评论',6:'辱骂攻击',7:'其他'};
+    return types[type] || '未知';
+  }
+
+  function showSuspendModal(violationId) {
+    const modalHtml = `
+            <div id="suspendModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-title">🔒 封禁用户/商家</div>
+                    <div class="modal-field"><label>封禁天数</label><input type="number" id="suspendDays" placeholder="输入封禁天数" value="7"></div>
+                    <div class="modal-field"><label>封禁原因</label><input type="text" id="suspendReason" placeholder="封禁原因"></div>
+                    <div class="modal-buttons"><button class="btn-submit" onclick="confirmSuspend(${violationId})">确认封禁</button><button class="btn-cancel" onclick="closeModal()">取消</button></div>
+                </div>
+            </div>
+        `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function confirmSuspend(violationId) {
+    const days = document.getElementById('suspendDays').value;
+    const reason = document.getElementById('suspendReason').value;
+    const remark = document.getElementById(`remark_${violationId}`)?.value || '';
+    closeModal();
+    await handleViolation(violationId, 2, `封禁${days}天，原因：${reason}`, days, reason);
+  }
+
+  async function handleViolation(id, status, resultMsg, suspendDays, suspendReason) {
+    const remark = document.getElementById(`remark_${id}`)?.value || '';
+    if (!confirm(`确定${resultMsg}处理吗？`)) return;
+    try {
+      const res = await axios.post(baseUrl + '/violation/handle', null, {
+        params: { id: id, status: status, remark: remark, suspendDays: suspendDays || 0, suspendReason: suspendReason || '' }
+      });
+      if (res.data.code === 0) { alert('处理成功'); loadViolations(); }
+      else { alert('处理失败：' + res.data.msg); }
+    } catch(err) { alert('处理失败'); }
+  }
+
+  function closeModal() { const modal = document.querySelector('.modal'); if(modal) modal.remove(); }
+  function formatDateTime(dateStr) { if(!dateStr) return '未知'; return dateStr.replace('T', ' '); }
+  function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+</script>
+</body>
+</html>

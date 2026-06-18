@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>平台管理中心</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#E3F2FD;font-family:'微软雅黑',sans-serif;padding-bottom:70px;}
+    .top-bar{position:fixed;top:0;left:0;right:0;background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:100;box-shadow:0 1px 4px #d1e7ff;}
+    .logo{font-size:18px;font-weight:bold;color:#42A5F5;}
+    .user-info{display:flex;align-items:center;gap:15px;}
+    .user-name{font-size:14px;color:#333;}
+    .logout-btn{background:#ff6b6b;color:#fff;border:none;padding:5px 15px;border-radius:20px;cursor:pointer;}
+    .dashboard{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:80px 15px 15px;}
+    .card{background:#fff;border-radius:12px;padding:25px;text-align:center;cursor:pointer;transition:transform 0.2s;box-shadow:0 1px 4px #d1e7ff;}
+    .card:hover{transform:translateY(-3px);}
+    .card-icon{font-size:48px;margin-bottom:10px;}
+    .card-title{font-size:16px;font-weight:bold;color:#333;}
+    .card-desc{font-size:12px;color:#999;margin-top:5px;}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;padding:8px 0;border-top:1px solid #E0E0E0;}
+    .nav-item{flex:1;text-align:center;font-size:12px;color:#666;cursor:pointer;}
+    .nav-item.active{color:#42A5F5;font-weight:bold;}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">🏛️ 平台管理中心</div>
+  <div class="user-info">
+    <span class="user-name" id="userName">管理员</span>
+    <button class="logout-btn" onclick="logout()">退出</button>
+  </div>
+</div>
+
+<div class="dashboard">
+  <div class="card" onclick="location.href='statistics.html'">
+    <div class="card-icon">📊</div>
+    <div class="card-title">数据统计</div>
+    <div class="card-desc">用户、订单、销售额统计</div>
+  </div>
+  <div class="card" onclick="location.href='control.html'">
+    <div class="card-icon">⚙️</div>
+    <div class="card-title">平台管控</div>
+    <div class="card-desc">商家审核、系统设置</div>
+  </div>
+  <div class="card" onclick="location.href='violation.html'">
+    <div class="card-icon">⚠️</div>
+    <div class="card-title">违规处理</div>
+    <div class="card-desc">违规记录、处罚管理</div>
+  </div>
+  <div class="card" onclick="location.href='mine.html'">
+    <div class="card-icon">👤</div>
+    <div class="card-title">个人中心</div>
+    <div class="card-desc">账户信息、安全设置</div>
+  </div>
+</div>
+<div class="card" onclick="location.href='complaint.html'">
+  <div class="card-icon">💬</div>
+  <div class="card-title">投诉反馈</div>
+  <div class="card-desc">查看和处理用户投诉</div>
+</div>
+<div class="card" onclick="location.href='user.html'">
+  <div class="card-icon">👥</div>
+  <div class="card-title">用户管理</div>
+  <div class="card-desc">查看、管理所有用户</div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item active">首页</div>
+  <div class="nav-item" onclick="location.href='statistics.html'">统计</div>
+  <div class="nav-item" onclick="location.href='violation.html'">违规</div>
+  <div class="nav-item" onclick="location.href='mine.html'">我的</div>
+</div>
+
+<script>
+  window.onload = function() {
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+
+    if (!userId) {
+      window.location.href = '../login.html';
+      return;
+    }
+    if (userRole !== 'admin') {
+      alert('权限不足');
+      window.location.href = '../index.html';
+      return;
+    }
+    document.getElementById('userName').innerText = username || '管理员';
+  };
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '../login.html';
+  }
+</script>
+</body>
+</html>
